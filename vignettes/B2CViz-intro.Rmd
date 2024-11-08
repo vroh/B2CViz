@@ -1,0 +1,81 @@
+---
+title: "Introduction to BC2Viz"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to B2CViz}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Introduction
+
+B2CViz is a package designed to help visualize VisiumHD spatial
+single-cell data that has been segmented with bin2cell. This vignette
+will guide you through the basic usage of the package.
+
+# Setup
+
+The following libraries are required: 'circlize', 'jpeg', 'png', 'FNN',
+'Seurat', 'dplyr', 'ggplot2', 'imager', 'shiny'
+
+# Loading Data
+
+For this example, we'll assume you have Seurat objects with spatial data
+and the associated image file used for the bin2cell segmentation. Here's
+how you would typically load your data:
+
+``` r
+# Load your Seurat objects
+obj_pre <- readRDS("path/to/your/seurat_object.rds") # pre-segmentation object
+obj_post <- readRDS("path/to/your/seurat_object.rds") # post-segmentation object
+
+# Specify the path to the HD image file used by bin2cell (works with jpg or png)
+image_path <- "path/to/your/image.jpg"
+
+# Create a bin2cell (B2C) object
+b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
+```
+
+# Selecting a Region of Interest (ROI)
+
+To select a region of interest, use the set_roi function:
+
+``` r
+# set region of interest
+set_roi(b2c = b2c)
+```
+
+This will open an interactive Shiny app where you can select your ROI.
+
+# Plotting Features
+
+Once you've selected your ROI, you can plot features using the plot_b2c
+function:
+
+``` r
+# Plot points
+plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = "points")
+
+# Plot hulls
+plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = "hulls")
+
+# Plot both points and hulls
+plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = c("points", "hulls"))
+```
+
+# Customizing Plots
+
+You can customize various aspects of the plot:
+
+``` r
+plot_b2c(b2c, 
+         features = c("feature1", "feature2"),
+         colors = data.frame(mid = c("blue", "red"), high = c("lightblue", "pink")),
+         intensity = 15,
+         he_alpha = 0.3,
+         pt_size = 0.7,
+         plot.type = "points")
+```
