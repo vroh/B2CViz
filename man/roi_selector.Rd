@@ -9,7 +9,7 @@ roi_selector(path, post)
 \arguments{
 \item{path}{Path to the image file used for bin2cell segmentation}
 
-\item{post}{Post-segemented Seurat object}
+\item{post}{Post-aggregated Seurat object}
 }
 \value{
 ROI coordinates

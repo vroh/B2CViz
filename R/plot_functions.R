@@ -1,6 +1,6 @@
 #' Plot MSD data
 #'
-#' @param object Post-segemented Seurat object
+#' @param object Post-aggregated Seurat object
 #' @param features Features to plot
 #' @param img Image data
 #' @param msd Mulit Spatial Data
@@ -60,7 +60,7 @@ plot_msd <- function(object, features = NULL, img, msd, coord, he_alpha = 0.4, p
 
 #' Wrapper for MSD plotting
 #'
-#' @param object Post-segemented Seurat object
+#' @param object Post-aggregated Seurat object
 #' @param img Image data
 #' @param features Features to plot
 #' @param coord Coordinates
@@ -95,7 +95,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
   }
 
   # load features
-  print("loading features")
+  message("loading features")
   if(is.null(b2c[["msd"]])) {
     msd <- get_msd(object = b2c$post, features = features, reduction = "spatial")
     b2c$msd <<- msd
@@ -111,14 +111,14 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     b2c$msd <<- msd
   }
   if(is.null(b2c$bins) & "hulls" %in% plot.type) {
-    print("loading hull data")
+    message("loading hull data")
     bins <- cbind(b2c$pre@meta.data, FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2")))
     bins <- bins[bins[, label.id] > 0,]
     b2c$bins <<- bins
   }
 
   # color msd
-  print("adding color")
+  message("adding color")
   if(!is.null(b2c[["msd"]])) {
     msd_col <- color_msd(msd = b2c$msd, colors = colors, intensity = intensity)
   } else {
@@ -128,10 +128,10 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
 
   # plot
   if(length(plot.type) == 1 & plot.type[1] == "points") {
-    print("plotting points")
+    message("plotting points")
     plot_msd(object = b2c$post, features = features, img = b2c$img, msd = msd_col, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size)
   } else if(length(plot.type) == 1 & plot.type[1] == "hulls") {
-    print("generatig hulls")
+    message("generatig hulls")
     if(is.null(b2c$bins)) {
       df <- bins[bins$SPATIAL_1 >= b2c$coord$xmin & bins$SPATIAL_1 <= b2c$coord$xmax & bins$SPATIAL_2 >= b2c$coord$ymin & bins$SPATIAL_2 <= b2c$coord$ymax,]
     } else {
@@ -146,7 +146,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     img <- b2c$img[b2c$img$y >= b2c$coord$xmin & b2c$img$y <= b2c$coord$xmax & b2c$img$x >= b2c$coord$ymin & b2c$img$x <= b2c$coord$ymax,]
 
     # compute nearest neighbour
-    print("computing nearest neighbour (NN)")
+    message("computing nearest neighbour (NN)")
     # points
     p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
     p1 <- p1$data[p1$data$y >= b2c$coord$xmin & p1$data$y <= b2c$coord$xmax & p1$data$x >= b2c$coord$ymin & p1$data$x <= b2c$coord$ymax,]
@@ -172,12 +172,12 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     # generate hull colors
     hull_col <- list()
     for(j in 4:(length(p1)-1)) {
-      print(paste("feature:", colnames(p1)[j]))
+      message(paste("feature:", colnames(p1)[j]))
       current_hull_col <- data.frame()
       current <- p1[,c(j, length(p1))]
       current <- current[current[,1] != "#00000000",]
       for(i in 1:nrow(current)) {
-        print(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
+        message(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
         color <- current[i,1]
         cell <- centroids[current[i,]$NN,][[label.id]]
         output <- hull[hull[[label.id]] == cell,] %>% mutate(color = color)
@@ -186,7 +186,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
       hull_col[[j-3]] <- current_hull_col
     }
 
-    print("plotting hulls")
+    message("plotting hulls")
     to_plot <- ggplot(img, aes(y, x)) +
       geom_raster(aes(fill = color), alpha = 0.4) +
       geom_point( # create fake legend
@@ -229,7 +229,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     }
 
   } else if(all(c("points", "hulls") %in% plot.type)) {
-    print("generatig hulls")
+    message("generatig hulls")
     if(is.null(b2c$bins)) {
       df <- bins[bins$SPATIAL_1 >= b2c$coord$xmin & bins$SPATIAL_1 <= b2c$coord$xmax & bins$SPATIAL_2 >= b2c$coord$ymin & bins$SPATIAL_2 <= b2c$coord$ymax,]
     } else {
@@ -244,7 +244,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     img <- b2c$img[b2c$img$y >= b2c$coord$xmin & b2c$img$y <= b2c$coord$xmax & b2c$img$x >= b2c$coord$ymin & b2c$img$x <= b2c$coord$ymax,]
 
     # compute nearest neighbour
-    print("computing nearest neighbour (NN)")
+    message("computing nearest neighbour (NN)")
     # points
     p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
     p1 <- p1$data[p1$data$y >= b2c$coord$xmin & p1$data$y <= b2c$coord$xmax & p1$data$x >= b2c$coord$ymin & p1$data$x <= b2c$coord$ymax,]
@@ -271,12 +271,12 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     # generate hull colors
     hull_col <- list()
     for(j in 4:(length(p1)-1)) {
-      print(paste("feature:", colnames(p1)[j]))
+      message(paste("feature:", colnames(p1)[j]))
       current_hull_col <- data.frame()
       current <- p1[,c(j, length(p1))]
       current <- current[current[,1] != "#00000000",]
       for(i in 1:nrow(current)) {
-        print(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
+        message(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
         color <- current[i,1]
         cell <- centroids[current[i,]$NN,][[label.id]]
         output <- hull[hull[[label.id]] == cell,] %>% mutate(color = color)
@@ -285,7 +285,7 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
       hull_col[[j-3]] <- current_hull_col
     }
 
-    print("plotting points and hulls")
+    message("plotting points and hulls")
     to_plot <- ggplot(img, aes(y, x)) +
       geom_raster(aes(fill = color), alpha = 0.4) +
       geom_point( # create fake legend

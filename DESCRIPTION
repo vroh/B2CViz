@@ -1,10 +1,10 @@
 Package: B2CViz
 Type: Package
-Title: Spatial Visualization Tools for bin2cell Processed VisiumHD Data
+Title: Spatial Visualization Tools for Bin2cell Processed VisiumHD Data
 Version: 0.1.0
 Author: Vincent Roh
 Maintainer: Vincent Roh <vincent.roh@sib.swiss>
-Description: Tools for visualizing bin2cell processed VisiumHD spatial single-cell data, including ROI selection and multi-feature plotting.
+Description: Tools for visualizing Bin2cell processed VisiumHD spatial single-cell data, including ROI selection and multi-feature plotting.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

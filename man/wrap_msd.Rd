@@ -16,7 +16,7 @@ wrap_msd(
 )
 }
 \arguments{
-\item{object}{Post-segemented Seurat object}
+\item{object}{Post-aggregated Seurat object}
 
 \item{img}{Image data}
 

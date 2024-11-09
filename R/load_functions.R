@@ -30,8 +30,8 @@ load_img <- function(path) {
 
 #' Load B2C object
 #'
-#' @param pre Pre-segemented Seurat object
-#' @param post Post-segemented Seurat object
+#' @param pre Pre-aggregated Seurat object
+#' @param post Post-aggregated Seurat object
 #' @param path Path to the image file used for bin2cell segmentation
 #' @return B2C object (A list containing pre, post, and image data)
 #' @export

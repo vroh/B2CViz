@@ -7,9 +7,9 @@
 load_b2c(pre = NULL, post = NULL, path = NULL)
 }
 \arguments{
-\item{pre}{Pre-segemented Seurat object}
+\item{pre}{Pre-aggregated Seurat object}
 
-\item{post}{Post-segemented Seurat object}
+\item{post}{Post-aggregated Seurat object}
 
 \item{path}{Path to the image file used for bin2cell segmentation}
 }

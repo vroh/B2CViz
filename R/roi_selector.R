@@ -1,7 +1,7 @@
 #' ROI Selector
 #'
 #' @param path Path to the image file used for bin2cell segmentation
-#' @param post Post-segemented Seurat object
+#' @param post Post-aggregated Seurat object
 #' @return ROI coordinates
 #' @export
 roi_selector <- function(path, post) {
