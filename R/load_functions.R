@@ -12,6 +12,7 @@ load_img <- function(path) {
   library(shiny)
   library(imager)
   library(ggplot2)
+  library(ggrepel)
   library(dplyr)
   library(FNN)
 

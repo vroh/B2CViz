@@ -14,7 +14,8 @@ plot_b2c(
   pt_size = 0.5,
   plot.type = c("points", "hulls"),
   label.id = "labels_he_expanded",
-  outline.hulls = NULL
+  outline.hulls = NULL,
+  show.labels = F
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ plot_b2c(
 \item{label.id}{Label ID of the bin2cell segmentation feature}
 
 \item{outline.hulls}{character vector of hulls to outline (by expanded labels ID)}
+
+\item{show.labels}{Whether or not to plot the hulls labels}
 }
 \description{
 Plot B2C object

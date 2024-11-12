@@ -11,7 +11,7 @@ You can install the development version of B2CViz from Gitlab with:
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following libraries: 'circlize', 'jpeg', 'png', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'imager', 'shiny'
+B2CViz depends on the following libraries: 'circlize', 'jpeg', 'png', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny'
 
 ## Preprocessing
 

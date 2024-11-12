@@ -90,8 +90,9 @@ wrap_msd <- function(object, img, features, coord, intensity = 10, he_alpha = 0.
 #' @param plot.type Type of plot
 #' @param label.id Label ID of the bin2cell segmentation feature
 #' @param outline.hulls character vector of hulls to outline (by expanded labels ID)
+#' @param show.labels Whether or not to plot the hulls labels
 #' @export
-plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded", outline.hulls = NULL) {
+plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded", outline.hulls = NULL, show.labels = F) {
   if(is.null(b2c$coord)) {
     stop("Run set_roi() on b2c object to set the desired coordinates")
   }
@@ -204,6 +205,12 @@ plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intens
         geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
         geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
                      aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black")
+      tmp <<- hull_col[[i]]
+    }
+
+    if(show.labels) {
+      to_plot <- to_plot +
+        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
     }
 
     if(is.null(b2c[["msd_col"]])) {
@@ -306,6 +313,11 @@ plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intens
         geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
                      aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black") +
         geom_point(data = points_to_plot, color = points_to_plot[,features[i]], size = pt_size*i, shape = 21, fill = NA, stroke = pt_size)
+    }
+
+    if(show.labels) {
+      to_plot <- to_plot +
+        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
     }
 
     if(is.null(b2c[["msd_col"]])) {
