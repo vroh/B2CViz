@@ -12,7 +12,7 @@ roi_selector(path, post)
 \item{post}{Post-aggregated Seurat object}
 }
 \value{
-ROI coordinates
+list of ROI coordinates
 }
 \description{
 ROI Selector

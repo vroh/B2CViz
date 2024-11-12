@@ -67,9 +67,11 @@ You can customize various aspects of the plot:
 ``` r
 plot_b2c(b2c, 
          features = c("feature1", "feature2"),
+         roi = 2,
          colors = data.frame(mid = c("blue", "red"), high = c("lightblue", "pink")),
          intensity = 15,
          he_alpha = 0.3,
          pt_size = 0.7,
-         plot.type = "points")
+         plot.type = "points",
+         outline.hulls = c(7966))
 ```

@@ -82,14 +82,16 @@ wrap_msd <- function(object, img, features, coord, intensity = 10, he_alpha = 0.
 #'
 #' @param b2c B2C object
 #' @param features Features to plot
+#' @param roi index of the ROI to plot
 #' @param colors Color palette
 #' @param intensity Color intensity
 #' @param he_alpha Alpha value for H&E image
 #' @param pt_size Point size
 #' @param plot.type Type of plot
 #' @param label.id Label ID of the bin2cell segmentation feature
+#' @param outline.hulls character vector of hulls to outline (by expanded labels ID)
 #' @export
-plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded") {
+plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded", outline.hulls = NULL) {
   if(is.null(b2c$coord)) {
     stop("Run set_roi() on b2c object to set the desired coordinates")
   }
@@ -129,13 +131,13 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
   # plot
   if(length(plot.type) == 1 & plot.type[1] == "points") {
     message("plotting points")
-    plot_msd(object = b2c$post, features = features, img = b2c$img, msd = msd_col, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size)
+    plot_msd(object = b2c$post, features = features, img = b2c$img, msd = msd_col, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size)
   } else if(length(plot.type) == 1 & plot.type[1] == "hulls") {
     message("generatig hulls")
     if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord$xmin & bins$SPATIAL_1 <= b2c$coord$xmax & bins$SPATIAL_2 >= b2c$coord$ymin & bins$SPATIAL_2 <= b2c$coord$ymax,]
+      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
     } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord$xmin & b2c$bins$SPATIAL_1 <= b2c$coord$xmax & b2c$bins$SPATIAL_2 >= b2c$coord$ymin & b2c$bins$SPATIAL_2 <= b2c$coord$ymax,]
+      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
     }
     df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
     hull <- df %>%
@@ -143,13 +145,13 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
       slice(chull(SPATIAL_1, SPATIAL_2))
 
 
-    img <- b2c$img[b2c$img$y >= b2c$coord$xmin & b2c$img$y <= b2c$coord$xmax & b2c$img$x >= b2c$coord$ymin & b2c$img$x <= b2c$coord$ymax,]
+    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
 
     # compute nearest neighbour
     message("computing nearest neighbour (NN)")
     # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord$xmin & p1$data$y <= b2c$coord$xmax & p1$data$x >= b2c$coord$ymin & p1$data$x <= b2c$coord$ymax,]
+    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
+    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
     if(length(p1) == 4) {
       p1 <- p1[p1[,4] != "#00000000",]
     } else {
@@ -199,14 +201,16 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
 
     for(i in 1:length(features)) {
       to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = 1/length(features), color = NA)
+        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
+        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
+                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black")
     }
 
     if(is.null(b2c[["msd_col"]])) {
       print(
         to_plot +
-          xlim(b2c$coord$xmin, b2c$coord$xmax) +
-          ylim(b2c$coord$ymax, b2c$coord$ymin) +
+          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
+          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
           scale_fill_identity() +
           scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
           guides(color = guide_legend(override.aes = list(alpha = 1))) +
@@ -217,8 +221,8 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     } else {
       print(
         to_plot +
-          xlim(b2c$coord$xmin, b2c$coord$xmax) +
-          ylim(b2c$coord$ymax, b2c$coord$ymin) +
+          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
+          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
           scale_fill_identity() +
           scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
           guides(color = guide_legend(override.aes = list(alpha = 1))) +
@@ -231,9 +235,9 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
   } else if(all(c("points", "hulls") %in% plot.type)) {
     message("generatig hulls")
     if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord$xmin & bins$SPATIAL_1 <= b2c$coord$xmax & bins$SPATIAL_2 >= b2c$coord$ymin & bins$SPATIAL_2 <= b2c$coord$ymax,]
+      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
     } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord$xmin & b2c$bins$SPATIAL_1 <= b2c$coord$xmax & b2c$bins$SPATIAL_2 >= b2c$coord$ymin & b2c$bins$SPATIAL_2 <= b2c$coord$ymax,]
+      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
     }
     df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
     hull <- df %>%
@@ -241,13 +245,13 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
       slice(chull(SPATIAL_1, SPATIAL_2))
 
 
-    img <- b2c$img[b2c$img$y >= b2c$coord$xmin & b2c$img$y <= b2c$coord$xmax & b2c$img$x >= b2c$coord$ymin & b2c$img$x <= b2c$coord$ymax,]
+    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
 
     # compute nearest neighbour
     message("computing nearest neighbour (NN)")
     # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord, he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord$xmin & p1$data$y <= b2c$coord$xmax & p1$data$x >= b2c$coord$ymin & p1$data$x <= b2c$coord$ymax,]
+    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
+    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
     points_to_plot <- p1
     if(length(p1) == 4) {
       p1 <- p1[p1[,4] != "#00000000",]
@@ -298,15 +302,17 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
 
     for(i in 1:length(features)) {
       to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = 1/length(features), color = NA) +
+        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
+        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
+                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black") +
         geom_point(data = points_to_plot, color = points_to_plot[,features[i]], size = pt_size*i, shape = 21, fill = NA, stroke = pt_size)
     }
 
     if(is.null(b2c[["msd_col"]])) {
       print(
         to_plot +
-          xlim(b2c$coord$xmin, b2c$coord$xmax) +
-          ylim(b2c$coord$ymax, b2c$coord$ymin) +
+          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
+          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
           scale_fill_identity() +
           scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
           guides(color = guide_legend(override.aes = list(alpha = 1))) +
@@ -317,8 +323,8 @@ plot_b2c <- function(b2c = NULL, features = NULL, colors = NULL, intensity = 10,
     } else {
       print(
         to_plot +
-          xlim(b2c$coord$xmin, b2c$coord$xmax) +
-          ylim(b2c$coord$ymax, b2c$coord$ymin) +
+          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
+          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
           scale_fill_identity() +
           scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
           guides(color = guide_legend(override.aes = list(alpha = 1))) +

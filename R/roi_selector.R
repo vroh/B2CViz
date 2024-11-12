@@ -2,10 +2,11 @@
 #'
 #' @param path Path to the image file used for bin2cell segmentation
 #' @param post Post-aggregated Seurat object
-#' @return ROI coordinates
+#' @return list of ROI coordinates
 #' @export
 roi_selector <- function(path, post) {
-  roi_coords <- NULL
+  roi_coords_list <- reactiveVal(list())
+  redraw_trigger <- reactiveVal(0)
 
   # Load the original image
   original_img <- load.image(path)
@@ -27,8 +28,10 @@ roi_selector <- function(path, post) {
     titlePanel("ROI Selector"),
     sidebarLayout(
       sidebarPanel(
-        actionButton("save", "Save ROI and Close"),
-        width = 2
+        actionButton("add", "Add ROI"),
+        actionButton("finish", "Finish and Close"),
+        verbatimTextOutput("roi_list"),
+        width = 3
       ),
       mainPanel(
         fluidRow(
@@ -43,12 +46,22 @@ roi_selector <- function(path, post) {
 
   server <- function(input, output, session) {
     output$main_plot <- renderPlot({
+      redraw_trigger()  # Depend on this to trigger redraws
       plot(display_img, axes = FALSE)
       rect(min(post@reductions$spatial[[1:dim(post@reductions$spatial)[1]]][,1])*scale_factor,
            min(post@reductions$spatial[[1:dim(post@reductions$spatial)[1]]][,2])*scale_factor,
            max(post@reductions$spatial[[1:dim(post@reductions$spatial)[1]]][,1])*scale_factor,
            max(post@reductions$spatial[[1:dim(post@reductions$spatial)[1]]][,2])*scale_factor,
            border = "green", lwd = 2)
+
+      # Draw existing ROIs in blue
+      for (roi in roi_coords_list()) {
+        rect(roi$xmin / x_scale, roi$ymin / y_scale,
+             roi$xmax / x_scale, roi$ymax / y_scale,
+             border = "blue", lwd = 2)
+      }
+
+      # Draw current selection in red
       if (!is.null(input$plot_brush)) {
         rect(input$plot_brush$xmin, input$plot_brush$ymin,
              input$plot_brush$xmax, input$plot_brush$ymax,
@@ -72,35 +85,56 @@ roi_selector <- function(path, post) {
                      x %inr% c(orig_xmin, orig_xmax),
                      y %inr% c(orig_ymin, orig_ymax))
         plot(roi, axes = FALSE)
-
-        # Debug output
-        cat("Display brush: ", input$plot_brush$xmin, input$plot_brush$ymin,
-            input$plot_brush$xmax, input$plot_brush$ymax, "\n")
-        cat("Original coords: ", orig_xmin, orig_ymin, orig_xmax, orig_ymax, "\n")
       }
     })
 
-    observeEvent(input$save, {
+    output$roi_list <- renderPrint({
+      cat("Selected ROIs:\n")
+      for (i in seq_along(roi_coords_list())) {
+        cat(sprintf("ROI %d: xmin=%d, xmax=%d, ymin=%d, ymax=%d\n",
+                    i,
+                    roi_coords_list()[[i]]$xmin,
+                    roi_coords_list()[[i]]$xmax,
+                    roi_coords_list()[[i]]$ymin,
+                    roi_coords_list()[[i]]$ymax))
+      }
+    })
+
+    observeEvent(input$add, {
       if (!is.null(input$plot_brush)) {
-        roi_coords <<- list(
+        new_roi <- list(
           xmin = max(1, round(input$plot_brush$xmin * x_scale)),
           xmax = min(width(original_img), round(input$plot_brush$xmax * x_scale)),
           ymin = max(1, round(input$plot_brush$ymin * y_scale)),
           ymax = min(height(original_img), round(input$plot_brush$ymax * y_scale))
         )
         # Ensure minimum size of 1x1 pixel
-        if (roi_coords$xmax <= roi_coords$xmin) roi_coords$xmax <- roi_coords$xmin + 1
-        if (roi_coords$ymax <= roi_coords$ymin) roi_coords$ymax <- roi_coords$ymin + 1
-        stopApp()
+        if (new_roi$xmax <= new_roi$xmin) new_roi$xmax <- new_roi$xmin + 1
+        if (new_roi$ymax <= new_roi$ymin) new_roi$ymax <- new_roi$ymin + 1
+
+        roi_coords_list(c(roi_coords_list(), list(new_roi)))
+        showNotification("ROI added successfully.", type = "message")
+
+        # Trigger a redraw
+        redraw_trigger(redraw_trigger() + 1)
       } else {
-        showNotification("Please select a region before saving.", type = "warning")
+        showNotification("Please select a region before adding.", type = "warning")
       }
+    })
+
+    observeEvent(input$finish, {
+      stopApp(roi_coords_list())
     })
   }
 
-  runApp(list(ui = ui, server = server))
+  result <- runApp(list(ui = ui, server = server))
 
-  return(roi_coords)
+  # Convert the reactive value to a regular list before returning
+  if (is.reactive(result)) {
+    return(result())
+  } else {
+    return(result)
+  }
 }
 
 #' Set ROI for B2C object

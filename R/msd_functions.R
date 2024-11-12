@@ -4,7 +4,10 @@
 #' @return MSD data frame
 #' @export
 get_msd <- function(...) {
-  pw <- FeaturePlot(...)
+  pw <- tryCatch(FeaturePlot(...), warning=function(w) w)
+  if(is(pw,"warning")) {
+    stop(pw)
+  }
   df <- list()
   for(i in 1:length(pw)) {
     df[[i]] <- pw[[i]]$data

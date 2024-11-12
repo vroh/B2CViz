@@ -7,18 +7,22 @@
 plot_b2c(
   b2c = NULL,
   features = NULL,
+  roi = 1,
   colors = NULL,
   intensity = 10,
   he_alpha = 0.4,
   pt_size = 0.5,
   plot.type = c("points", "hulls"),
-  label.id = "labels_he_expanded"
+  label.id = "labels_he_expanded",
+  outline.hulls = NULL
 )
 }
 \arguments{
 \item{b2c}{B2C object}
 
 \item{features}{Features to plot}
+
+\item{roi}{index of the ROI to plot}
 
 \item{colors}{Color palette}
 
@@ -31,6 +35,8 @@ plot_b2c(
 \item{plot.type}{Type of plot}
 
 \item{label.id}{Label ID of the bin2cell segmentation feature}
+
+\item{outline.hulls}{character vector of hulls to outline (by expanded labels ID)}
 }
 \description{
 Plot B2C object

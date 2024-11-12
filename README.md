@@ -35,7 +35,7 @@ To visualize data, load the objects, select a region of interest and call the pl
 ``` r
 library(B2CViz)
 
-# create bin2cell object (works with jpg or png, provide path to image used for 2in2cell segmentation)
+# create bin2cell object (works with jpg or png, provide path to image used for bin2cell segmentation)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
 
 # set region of interest (choose a small region)
@@ -50,7 +50,8 @@ plot_b2c(b2c = b2c,
          he_alpha = 0.4,
          pt_size = 0.5,
          plot.type = c("points", "hulls"),
-         label.id = "labels_he_expanded") # Label ID of the bin2cell segmentation feature
+         label.id = "labels_he_expanded"), # column name of the bin2cell segmentation feature
+         outline.hulls = c(7966))
 ```
 
 More informations are available in the vignette
