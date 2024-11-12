@@ -205,7 +205,6 @@ plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intens
         geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
         geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
                      aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black")
-      tmp <<- hull_col[[i]]
     }
 
     if(show.labels) {
