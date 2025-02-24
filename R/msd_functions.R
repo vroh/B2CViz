@@ -29,8 +29,8 @@ color_msd <- function(msd, colors = NULL, intensity = 10) {
   if(is.null(colors)) {
     colors <-
       data.frame(
-        mid = c( "orange", "seagreen",  "dodgerblue4", "indianred4"),#, "magenta4"), # a bit too close to red
-        high = c("gold",   "seagreen1", "dodgerblue",  "indianred1")#,  "magenta2")
+        mid = c( "orange", "indianred4",  "dodgerblue4", "seagreen"),#, "magenta4"), # a bit too close to red
+        high = c("gold",   "indianred1", "dodgerblue",  "seagreen1")#,  "magenta2")
       )
   }
   legend_colors <- NULL

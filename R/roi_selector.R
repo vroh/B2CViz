@@ -140,7 +140,9 @@ roi_selector <- function(path, post) {
 #' Set ROI for B2C object
 #'
 #' @param b2c B2C object
+#' @return B2C object
 #' @export
 set_roi <- function(b2c = NULL) {
-  b2c$coord <<- roi_selector(path = b2c$path, post = b2c$post)
+  b2c$coord <- roi_selector(path = b2c$path, post = b2c$post)
+  b2c
 }

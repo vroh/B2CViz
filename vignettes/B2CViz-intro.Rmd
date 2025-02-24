@@ -16,7 +16,7 @@ B2CViz is a package designed to help visualize VisiumHD spatial single-cell data
 
 # Setup
 
-The following libraries are required: 'circlize', 'jpeg', 'png', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny'
+The following libraries are required: 'circlize', 'jpeg', 'png', 'tiff', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny'
 
 # Loading Data
 
