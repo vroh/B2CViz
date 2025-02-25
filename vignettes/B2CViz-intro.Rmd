@@ -40,7 +40,7 @@ To select a region of interest, use the set_roi function:
 
 ``` r
 # set region of interest
-set_roi(b2c = b2c)
+b2c <- set_roi(b2c = b2c)
 ```
 
 This will open an interactive Shiny app where you can select your ROI.
@@ -51,13 +51,13 @@ Once you've selected your ROI, you can plot features using the plot_b2c function
 
 ``` r
 # Plot points
-plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = "points")
+plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = "points")
 
 # Plot hulls
-plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = "hulls")
+plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = "hulls")
 
 # Plot both points and hulls
-plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = c("points", "hulls"))
+plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = c("points", "hulls"))
 ```
 
 # Customizing Plots
@@ -65,13 +65,13 @@ plot_b2c(b2c, features = c("feature1", "feature2"), plot.type = c("points", "hul
 You can customize various aspects of the plot:
 
 ``` r
-plot_b2c(b2c, 
-         features = c("feature1", "feature2"),
-         roi = 2,
-         colors = data.frame(mid = c("blue", "red"), high = c("lightblue", "pink")),
-         intensity = 15,
-         he_alpha = 0.3,
-         pt_size = 0.7,
-         plot.type = "points",
-         outline.hulls = c(7966))
+plot_b2c_nn(b2c, 
+            features = c("feature1", "feature2"),
+            roi = 2,
+            colors = data.frame(mid = c("blue", "red"), high = c("lightblue", "pink")),
+            intensity = 15,
+            he_alpha = 0.3,
+            pt_size = 0.7,
+            plot.type = "points",
+            outline.hulls = c(7966))
 ```

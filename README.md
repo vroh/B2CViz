@@ -39,19 +39,19 @@ library(B2CViz)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
 
 # set region of interest (choose a small region)
-set_roi(b2c = b2c)
+b2c <- set_roi(b2c = b2c)
 
 # plot features
 # points is faster and require "post" object only
 # hulls require more computation time and both "pre" and "post" Seurat object
-plot_b2c(b2c = b2c,
-         features = c("Feature1", "Feature2"),
-         intensity = 10,
-         he_alpha = 0.4,
-         pt_size = 0.5,
-         plot.type = c("points", "hulls"),
-         label.id = "labels_he_expanded"), # column name of the bin2cell segmentation feature
-         outline.hulls = c(7966))
+plot_b2c_nn(b2c = b2c,
+            features = c("Feature1", "Feature2"),
+            intensity = 10,
+            he_alpha = 0.4,
+            pt_size = 0.5,
+            plot.type = c("points", "hulls"),
+            label.id = "labels_he_expanded"), # column name of the bin2cell segmentation feature
+            outline.hulls = c(7966))
 ```
 
 More informations are available in the vignette
