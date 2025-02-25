@@ -12,6 +12,7 @@ wrap_msd(
   intensity = 10,
   he_alpha = 0.4,
   pt_size = 0.5,
+  colors = NULL,
   plot = TRUE
 )
 }

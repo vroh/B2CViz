@@ -9,6 +9,9 @@ set_roi(b2c = NULL)
 \arguments{
 \item{b2c}{B2C object}
 }
+\value{
+B2C object
+}
 \description{
 Set ROI for B2C object
 }
