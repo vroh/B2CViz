@@ -1,21 +1,15 @@
+#' @import(png)
+#' @import(jpeg)
+#' @import(tiff)
+#' @import(dplyr)
+NULL
+
 #' Load image file
 #'
 #' @param path Path to the image file used for bin2cell segmentation
 #' @return A data frame with image data
 #' @export
 load_img <- function(path) {
-
-  # load all required packages
-  library(Seurat)
-  library(png)
-  library(jpeg)
-  library(tiff)
-  library(shiny)
-  library(imager)
-  library(ggplot2)
-  library(ggrepel)
-  library(dplyr)
-  library(FNN)
 
   if(grepl("\\.png", path)) {
     im <- png::readPNG(path)
@@ -57,35 +51,43 @@ scaledown_img <- function(b2c, grid.size = 10) {
 
   # Aggregate the data
   output <- b2c$img %>%
-    mutate(
+    dplyr::mutate(
       x_bin = floor(x / grid.size) * grid.size,
       y_bin = floor(y / grid.size) * grid.size
     ) %>%
-    group_by(x_bin, y_bin) %>%
-    summarise(
+    dplyr::group_by(x_bin, y_bin) %>%
+    dplyr::summarise(
       r = mean(r),
       g = mean(g),
       b = mean(b)
     ) %>%
-    select(x_bin, y_bin, r, g, b) %>%
-    rename(x = "x_bin", y = "y_bin") %>%
-    mutate(color = rgb(r, g, b))
+    dplyr::select(x_bin, y_bin, r, g, b) %>%
+    dplyr::rename(x = "x_bin", y = "y_bin") %>%
+    dplyr::mutate(color = rgb(r, g, b))
   b2c$img_sd <- output
   b2c
 }
 
-#' Load ENACT object
+#' Crop B2C object to the dimension of selected ROI
 #'
-#' @param poly ENACT table (csv) containing polygon data
-#' @param post Post-aggregated (with ENACT) Seurat object
-#' @param path Path to the image file used for ENACT segmentation
-#' @return B2C object (A list containing pre, post, and image data, adapted from ENACT objects)
+#' @param b2c B2C object
+#' @param roi ROI id to crop from
+#' @param label.id Label ID of the bin2cell segmentation feature
+#' @return B2C object
 #' @export
-load_enact <- function(poly = NULL, post = NULL, path = NULL) {
-
-
-
-  b2c <- list(pre = pre, post = post, path = path)
-  b2c$img <- load_img(path)
+crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
+  cells_to_keep <- FetchData(b2c$post, c("SPATIAL_1", "SPATIAL_2"))
+  cells_to_keep <- filter(cells_to_keep,
+                          SPATIAL_1 >= b2c$coord[[roi]]$xmin,
+                          SPATIAL_1 <= b2c$coord[[roi]]$xmax,
+                          SPATIAL_2 >= b2c$coord[[roi]]$ymin,
+                          SPATIAL_2 <= b2c$coord[[roi]]$ymax)
+  b2c$post <- b2c$post[,colnames(b2c$post) %in% rownames(cells_to_keep)]
+  b2c$pre <- b2c$pre[,as.character(b2c$pre@meta.data[,label.id]) %in% rownames(cells_to_keep)]
+  b2c$img <- filter(b2c$img,
+                    y >= b2c$coord[[roi]]$xmin,
+                    y <= b2c$coord[[roi]]$xmax,
+                    x >= b2c$coord[[roi]]$ymin,
+                    x <= b2c$coord[[roi]]$ymax)
   b2c
 }

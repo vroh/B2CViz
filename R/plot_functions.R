@@ -1,16 +1,23 @@
+#' @import(Seurat)
+#' @import(ggplot2)
+#' @import(ggrepel)
+#' @import(dplyr)
+#' @import(ggnewscale)
+NULL
+
 #' Plot spatial feature from a B2C object (requires scaled-down image)
 #'
 #' @param b2c B2C object
-#' @param feature Gene feature to plot
+#' @param feat Gene feature to plot
 #' @param pt.size Size of the points
 #' @export
-simpleplot <- function(b2c, feature, pt.size = 0.001, he_alpha = 0.4) {
+overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "gray", col.high = "seagreen2") {
 
   if(is.null(b2c$img_sd)) {
     stop("run scaledown_img() on b2c object first")
   }
 
-  df <- FeaturePlot(b2c$post, feature, reduction = "spatial")[[1]]$data
+  df <- FeaturePlot(b2c$post, feat, reduction = "spatial")[[1]]$data
   colnames(df)[4] <- "feat"
   print(
     ggplot(filter(df, feat > 0), aes(y, x)) +
@@ -18,599 +25,130 @@ simpleplot <- function(b2c, feature, pt.size = 0.001, he_alpha = 0.4) {
       geom_point(aes(x = SPATIAL_1, y = SPATIAL_2, col = feat), alpha = scale(filter(df, feat > 0)$feat), size = pt.size) +
       coord_fixed(ratio = 1) +
       scale_fill_identity() +
-      scale_color_continuous(name = feature, low = "gray", high = "seagreen2") +
+      scale_color_continuous(name = feat, low = col.low, col.high = "seagreen2") +
       xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
       ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
       theme_void() +
-      ggtitle(feature) +
+      ggtitle(feat) +
       theme(plot.title = element_text(hjust = 0.5)))
-}
-
-#' Plot MSD data
-#'
-#' @param object Post-aggregated Seurat object
-#' @param features Features to plot
-#' @param img Image data
-#' @param msd Mulit Spatial Data
-#' @param coord Coordinates
-#' @param he_alpha Alpha value for H&E image
-#' @param pt_size Point size
-#' @param plot Whether to plot or return ggplot object
-#' @return ggplot object or plot
-#' @export
-plot_msd <- function(object, features = NULL, img, msd, coord, he_alpha = 0.4, pt_size = 1, plot = TRUE) {
-  img <- img[img$y >= coord$xmin & img$y <= coord$xmax & img$x >= coord$ymin & img$x <= coord$ymax,]
-  msd[[1]] <- msd[[1]][msd[[1]]$y >= coord$xmin & msd[[1]]$y <= coord$xmax & msd[[1]]$x >= coord$ymin & msd[[1]]$x <= coord$ymax,]
-
-
-  to_plot <- ggplot(msd[[1]], aes(x = y, y = x)) +
-    geom_raster(data = img, aes(fill = color), alpha = he_alpha) +
-    geom_point( # create fake legend
-      data =
-        data.frame(
-          features = features,
-          x = 0,
-          y = 0),
-      aes(col = features)
-    )
-
-  for(i in 1:length(features)) {
-    to_plot <- to_plot +
-      geom_point(color = msd[[1]][,features[i]], size = pt_size*i*ifelse(length(features) == 1, 2, 1), shape = ifelse(length(features) == 1, 16, 21), fill = NA, stroke = pt_size)
-  }
-
-  if(plot) {
-    print(
-      to_plot +
-        xlim(coord$xmin, coord$xmax) +
-        ylim(coord$ymax, coord$ymin) +
-        scale_fill_identity() +
-        scale_color_manual(breaks = features, values = msd[[2]], name = "") +
-        guides(color = guide_legend(override.aes = list(alpha = 1))) +
-        coord_fixed(ratio = 1) +
-        theme_void() +
-        theme(legend.position = "right")
-    )
-  } else {
-
-    to_plot +
-      xlim(coord$xmin, coord$xmax) +
-      ylim(coord$ymax, coord$ymin) +
-      scale_fill_identity() +
-      scale_color_manual(breaks = features, values = msd[[2]], name = "") +
-      guides(color = guide_legend(override.aes = list(alpha = 1))) +
-      coord_fixed(ratio = 1) +
-      theme_void() +
-      theme(legend.position = "right")
-  }
-}
-
-#' Wrapper for MSD plotting
-#'
-#' @param object Post-aggregated Seurat object
-#' @param img Image data
-#' @param features Features to plot
-#' @param coord Coordinates
-#' @param intensity Color intensity
-#' @param he_alpha Alpha value for H&E image
-#' @param pt_size Point size
-#' @param plot Whether to plot or return ggplot object
-#' @return ggplot object or plot
-#' @export
-wrap_msd <- function(object, img, features, coord, intensity = 10, he_alpha = 0.4, pt_size = 0.5, colors = NULL, plot = TRUE) {
-  msd <- get_msd(object = object, features = features, reduction = "spatial")
-  msd <- color_msd(msd = msd, intensity = intensity, colors = colors)
-  plot_msd(object, features, img = img, msd = msd, coord = coord, he_alpha = he_alpha, pt_size = pt_size, plot = plot)
-}
-
-#' Plot B2C object using nearest neighbor
-#'
-#' @param b2c B2C object
-#' @param features Features to plot
-#' @param roi index of the ROI to plot
-#' @param colors Color palette
-#' @param intensity Color intensity
-#' @param he_alpha Alpha value for H&E image
-#' @param pt_size Point size
-#' @param plot.type Type of plot
-#' @param label.id Label ID of the bin2cell segmentation feature
-#' @param outline.hulls character vector of hulls to outline (by expanded labels ID)
-#' @param show.labels Whether or not to plot the hulls labels
-#' @export
-plot_b2c_nn <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded", outline.hulls = NULL, show.labels = F) {
-  if(is.null(b2c$coord)) {
-    stop("Run set_roi() on b2c object to set the desired coordinates")
-  }
-
-  # load features
-  message("loading features")
-  if(is.null(b2c[["msd"]])) {
-    msd <- get_msd(object = b2c$post, features = features, reduction = "spatial")
-
-  } else if(all(features %in% colnames(b2c$msd))){
-    msd <- b2c$msd
-  } else {
-    feat_to_add <- features[!features %in% colnames(b2c$msd)]
-    feat_to_add_msd <- get_msd(object = b2c$post, features = feat_to_add, reduction = "spatial")
-    msd <- cbind(b2c$msd, feat_to_add_msd[, (length(feat_to_add_msd)-(length(feat_to_add)-1)):length(feat_to_add_msd)])
-    if(length(feat_to_add) == 1) {
-      colnames(msd)[length(msd)] <- feat_to_add
-    }
-  }
-  if(is.null(msd)) {
-    msd <- b2c$msd
-  }
-  if(is.null(b2c$bins) & "hulls" %in% plot.type) {
-    message("loading hull data")
-    bins <- cbind(b2c$pre@meta.data, FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2")))
-    bins <- bins[bins[, label.id] > 0,]
-  } else {
-    bins <- b2c$bins
-  }
-
-  # color msd
-  message("adding color")
-  if(!is.null(b2c[["msd"]])) {
-    msd_col <- color_msd(msd = b2c$msd, colors = colors, intensity = intensity)
-  } else {
-    msd_col <- color_msd(msd = msd, colors = colors, intensity = intensity)
-  }
-
-  # save object
-  assign(deparse(substitute(b2c)), modifyList(b2c, list(msd_col = msd_col, bins = bins, msd = msd)), envir = parent.frame())
-
-  # plot
-  if(length(plot.type) == 1 & plot.type[1] == "points") {
-    message("plotting points")
-    plot_msd(object = b2c$post, features = features, img = b2c$img, msd = msd_col, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size)
-  } else if(length(plot.type) == 1 & plot.type[1] == "hulls") {
-    message("generating hulls")
-    if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    }
-    df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
-    hull <- df %>%
-      group_by(across(label.id)) %>%
-      slice(chull(SPATIAL_1, SPATIAL_2))
-
-
-    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
-
-    # compute nearest neighbour
-    message("computing nearest neighbour (NN)")
-    # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
-    if(length(p1) == 4) {
-      p1 <- p1[p1[,4] != "#00000000",]
-    } else {
-      p1 <- p1[apply(p1[,4:length(p1)], 1, function(u) !all(grepl("#00000000", u))),]
-    }
-    # centroid
-    centroids <- hull %>% group_by(across(label.id)) %>% summarise(y = mean(SPATIAL_1), x = mean(SPATIAL_2))
-    # NN
-    # Sample data frames
-    df1 <- select(p1, x, y)
-    df2 <- centroids
-    # Combine x and y into a matrix for both data frames
-    points_df1 <- as.matrix(df1)
-    points_df2 <- as.matrix(df2[, c("x", "y")])  # Only use x and y from df2
-    # Find the nearest neighbors
-    # k = 1 means we want the nearest neighbor
-    nearest_indices <- get.knnx(points_df2, points_df1, k = 1)$nn.index
-    p1$NN <- nearest_indices
-
-    # generate hull colors
-    hull_col <- list()
-    for(j in 4:(length(p1)-1)) {
-      message(paste("feature:", colnames(p1)[j]))
-      current_hull_col <- data.frame()
-      current <- p1[,c(j, length(p1))]
-      current <- current[current[,1] != "#00000000",]
-      for(i in 1:nrow(current)) {
-        message(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
-        color <- current[i,1]
-        cell <- centroids[current[i,]$NN,][[label.id]]
-        output <- hull[hull[[label.id]] == cell,] %>% mutate(color = color)
-        current_hull_col <- rbind(current_hull_col, output)
-      }
-      hull_col[[j-3]] <- current_hull_col
-    }
-
-    message("plotting hulls")
-    to_plot <- ggplot(img, aes(y, x)) +
-      geom_raster(aes(fill = color), alpha = he_alpha) +
-      geom_point( # create fake legend
-        data =
-          data.frame(
-            features = features,
-            x = 0,
-            y = 0),
-        aes(col = features))
-
-    for(i in 1:length(features)) {
-      to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
-        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
-                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black")
-    }
-
-    if(show.labels) {
-      to_plot <- to_plot +
-        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
-    }
-
-    if(is.null(b2c[["msd_col"]])) {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    } else {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    }
-
-  } else if(all(c("points", "hulls") %in% plot.type)) {
-    message("generating hulls")
-    if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    }
-    df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
-    hull <- df %>%
-      group_by(across(label.id)) %>%
-      slice(chull(SPATIAL_1, SPATIAL_2))
-
-
-    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
-
-    # compute nearest neighbour
-    message("computing nearest neighbour (NN)")
-    # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
-    points_to_plot <- p1
-    if(length(p1) == 4) {
-      p1 <- p1[p1[,4] != "#00000000",]
-    } else {
-      p1 <- p1[apply(p1[,4:length(p1)], 1, function(u) !all(grepl("#00000000", u))),]
-    }
-    # centroid
-    centroids <- hull %>% group_by(across(label.id)) %>% summarise(y = mean(SPATIAL_1), x = mean(SPATIAL_2))
-    # NN
-    # Sample data frames
-    df1 <- select(p1, x, y)
-    df2 <- centroids
-    # Combine x and y into a matrix for both data frames
-    points_df1 <- as.matrix(df1)
-    points_df2 <- as.matrix(df2[, c("x", "y")])  # Only use x and y from df2
-    # Find the nearest neighbors
-    # k = 1 means we want the nearest neighbor
-    nearest_indices <- get.knnx(points_df2, points_df1, k = 1)$nn.index
-    p1$NN <- nearest_indices
-
-    # generate hull colors
-    hull_col <- list()
-    for(j in 4:(length(p1)-1)) {
-      message(paste("feature:", colnames(p1)[j]))
-      current_hull_col <- data.frame()
-      current <- p1[,c(j, length(p1))]
-      current <- current[current[,1] != "#00000000",]
-      for(i in 1:nrow(current)) {
-        message(paste0("Computing ", colnames(p1)[j], " NN: ", round(100*i/nrow(current), 1), "% Done"))
-        color <- current[i,1]
-        cell <- centroids[current[i,]$NN,][[label.id]]
-        output <- hull[hull[[label.id]] == cell,] %>% mutate(color = color)
-        current_hull_col <- rbind(current_hull_col, output)
-      }
-      hull_col[[j-3]] <- current_hull_col
-    }
-
-    message("plotting points and hulls")
-    to_plot <- ggplot(img, aes(y, x)) +
-      geom_raster(aes(fill = color), alpha = he_alpha) +
-      geom_point( # create fake legend
-        data =
-          data.frame(
-            features = features,
-            x = 0,
-            y = 0),
-        aes(col = features))
-
-    for(i in 1:length(features)) {
-      to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/10)/length(features), color = NA) +
-        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
-                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black") +
-        geom_point(data = points_to_plot, color = points_to_plot[,features[i]], size = pt_size*i, shape = 21, fill = NA, stroke = pt_size)
-    }
-
-    if(show.labels) {
-      to_plot <- to_plot +
-        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
-    }
-
-    if(is.null(b2c[["msd_col"]])) {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    } else {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    }
-  }
 }
 
 #' Plot B2C object
 #'
 #' @param b2c B2C object
-#' @param features Features to plot
-#' @param roi index of the ROI to plot
-#' @param colors Color palette
-#' @param intensity Color intensity
-#' @param he_alpha Alpha value for H&E image
-#' @param pt_size Point size
-#' @param plot.type Type of plot
+#' @param feat Features to plot
 #' @param label.id Label ID of the bin2cell segmentation feature
-#' @param outline.hulls character vector of hulls to outline (by expanded labels ID)
+#' @param min.visible Feature value threshold for visualization (single value or vector for each feature)
+#' @param col.mid Mid color for colorscale (single value or vector for each feature)
+#' @param col.high High color for colorscale (single value or vector for each feature)
+#' @param alpha.mid Mid alpha value for colorscale (single value or vector for each feature)
+#' @param alpha.high High alpha value for colorscale (single value or vector for each feature)
+#' @param pt_size Point size
+#' @param he_alpha Alpha value for H&E image
+#' @param title Plot title
+#' @param plot.type Type of plot (points or hulls or both)
+#' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
+#' @param plot Whether to display or return the plot
 #' @export
-plot_b2c <- function(b2c = NULL, features = NULL, roi = 1, colors = NULL, intensity = 10, he_alpha = 0.4, pt_size = 0.5, plot.type = c("points", "hulls"), label.id = "labels_he_expanded", outline.hulls = NULL, show.labels = F) {
-  if(is.null(b2c$coord)) {
-    stop("Run set_roi() on b2c object to set the desired coordinates")
+plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
+                     col.mid = "orangered", col.high = "orangered", alpha.mid = 0, alpha.high = 1,
+                     pt.size = 1, he_alpha = 0.3, title = NULL,
+                     plot.type = c("points", "hulls"), outline.hulls = NULL, show.labels = F, plot = T) {
+
+  # adjust parameters length
+  if(length(min.visible) == 1) {
+    min.visible <- rep(min.visible, length(feat))
+  }
+  if(length(alpha.mid) == 1) {
+    alpha.mid <- rep(alpha.mid, length(feat))
+  }
+  if(length(alpha.high) == 1) {
+    alpha.high <- rep(alpha.high, length(feat))
   }
 
-  # load features
-  message("loading features")
-  if(is.null(b2c[["msd"]])) {
-    msd <- get_msd(object = b2c$post, features = features, reduction = "spatial")
-
-  } else if(all(features %in% colnames(b2c$msd))){
-    msd <- b2c$msd
-  } else {
-    feat_to_add <- features[!features %in% colnames(b2c$msd)]
-    feat_to_add_msd <- get_msd(object = b2c$post, features = feat_to_add, reduction = "spatial")
-    msd <- cbind(b2c$msd, feat_to_add_msd[, (length(feat_to_add_msd)-(length(feat_to_add)-1)):length(feat_to_add_msd)])
-    if(length(feat_to_add) == 1) {
-      colnames(msd)[length(msd)] <- feat_to_add
-    }
-  }
-  if(is.null(msd)) {
-    msd <- b2c$msd
-  }
-  if(is.null(b2c$bins) & "hulls" %in% plot.type) {
-    message("loading hull data")
-    bins <- cbind(b2c$pre@meta.data, FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2")))
-    bins <- bins[bins[, label.id] > 0,]
-  } else {
-    bins <- b2c$bins
-  }
-
-  # color msd
-  message("adding color")
-  if(!is.null(b2c[["msd"]])) {
-    msd_col <- color_msd(msd = b2c$msd, colors = colors, intensity = intensity)
-  } else {
-    msd_col <- color_msd(msd = msd, colors = colors, intensity = intensity)
-  }
-
-  # save object
-  assign(deparse(substitute(b2c)), modifyList(b2c, list(msd_col = msd_col, bins = bins, msd = msd)), envir = parent.frame())
-
-  # plot
-  if(length(plot.type) == 1 & plot.type[1] == "points") {
-    message("plotting points")
-    plot_msd(object = b2c$post, features = features, img = b2c$img, msd = msd_col, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size)
-  } else if(length(plot.type) == 1 & plot.type[1] == "hulls") {
-    message("generating hulls")
-    if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    }
-    df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
-    hull <- df %>%
+  # fetch data
+  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat))
+  df_post[label.id] <- row.names(df_post)
+  if("hulls" %in% plot.type) {
+    df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
       group_by(across(label.id)) %>%
       slice(chull(SPATIAL_1, SPATIAL_2))
+    df <- merge(df_post, df_pre, by = label.id)
+  }
 
-    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
+  # plot H&E
+  p <-
+    ggplot(df_post) +
+    geom_raster(data = b2c$img, aes(x = y, y = x, fill = color), alpha = he_alpha) +
+    scale_fill_identity() +
+    ggnewscale::new_scale_fill()
 
-    # color hull
-    message("generating hull colors")
-    # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
-    if(length(p1) == 4) {
-      p1 <- p1[p1[,4] != "#00000000",]
-    } else {
-      p1 <- p1[apply(p1[,4:length(p1)], 1, function(u) !all(grepl("#00000000", u))),]
+  # plot cells
+  if("points" %in% plot.type & !("hulls" %in% plot.type)) {
+    for(i in 1:length(feat)) {
+      p <-
+        p +
+        geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
+                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        ggnewscale::new_scale_color()
     }
-
-    # generate hull colors
-    hull_col <- list()
-    for(i in 4:length(p1)) {
-      current_hull_col <-
-        merge(hull,
-              data.frame(label = rownames(p1), color = p1[,i]),
-              by.x = label.id,
-              by.y = "label")
-      hull_col[[i-3]] <- current_hull_col %>%
-        group_by(across(label.id)) %>%
-        slice(chull(SPATIAL_1, SPATIAL_2))
+  } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
+    for(i in 1:length(feat)) {
+      p <-
+        p +
+        geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
+                     aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
+        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        ggnewscale::new_scale_fill()
     }
-
-    message("plotting hulls")
-    to_plot <- ggplot(img, aes(y, x)) +
-      geom_raster(aes(fill = color), alpha = he_alpha) +
-      geom_point( # create fake legend
-        data =
-          data.frame(
-            features = features,
-            x = 0,
-            y = 0),
-        aes(col = features))
-
-    for(i in 1:length(features)) {
-      to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/3)/length(features), color = NA) +
-        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
-                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black")
+  } else if("points" %in% plot.type & "hulls" %in% plot.type) {
+    for(i in 1:length(feat)) {
+      p <-
+        p +
+        geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
+                     aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
+        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        ggnewscale::new_scale_fill() +
+        geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
+                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        ggnewscale::new_scale_color()
     }
+  }
 
-    if(show.labels) {
-      to_plot <- to_plot +
-        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
+  # plot labels
+  if(show.labels) {
+    for(i in 1:length(feat)) {
+      p <-
+        p +
+        ggrepel::geom_text_repel(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
     }
+  }
 
-    if(is.null(b2c[["msd_col"]])) {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    } else {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    }
+  # outline hulls
+  if(!is.null(outline.hulls)) {
+    p <-
+      p +
+      geom_polygon(data = dplyr::filter(df, !!sym(label.id) %in% outline.hulls),
+                   aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id), fill = NA, color = "black")
+  }
 
-  } else if(all(c("points", "hulls") %in% plot.type)) {
-    message("generating hulls")
-    if(is.null(b2c$bins)) {
-      df <- bins[bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    } else {
-      df <- b2c$bins[b2c$bins$SPATIAL_1 >= b2c$coord[[roi]]$xmin & b2c$bins$SPATIAL_1 <= b2c$coord[[roi]]$xmax & b2c$bins$SPATIAL_2 >= b2c$coord[[roi]]$ymin & b2c$bins$SPATIAL_2 <= b2c$coord[[roi]]$ymax,]
-    }
-    df[[label.id]] <- factor(df[[label.id]], levels = unique(df[[label.id]]))
-    hull <- df %>%
-      group_by(across(label.id)) %>%
-      slice(chull(SPATIAL_1, SPATIAL_2))
+  # wrap plot
+  p <-
+    p +
+    coord_fixed(ratio = 1) +
+    theme_void() +
+    scale_y_reverse() +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5))
 
-    img <- b2c$img[b2c$img$y >= b2c$coord[[roi]]$xmin & b2c$img$y <= b2c$coord[[roi]]$xmax & b2c$img$x >= b2c$coord[[roi]]$ymin & b2c$img$x <= b2c$coord[[roi]]$ymax,]
-
-    # color hull
-    message("generating hull colors")
-    # points
-    p1 <- wrap_msd(object = b2c$post, features = features, img = b2c$img, coord = b2c$coord[[roi]], he_alpha = he_alpha, pt_size = pt_size, plot = FALSE)
-    p1 <- p1$data[p1$data$y >= b2c$coord[[roi]]$xmin & p1$data$y <= b2c$coord[[roi]]$xmax & p1$data$x >= b2c$coord[[roi]]$ymin & p1$data$x <= b2c$coord[[roi]]$ymax,]
-    points_to_plot <- p1
-    if(length(p1) == 4) {
-      p1 <- p1[p1[,4] != "#00000000",]
-    } else {
-      p1 <- p1[apply(p1[,4:length(p1)], 1, function(u) !all(grepl("#00000000", u))),]
-    }
-
-    # generate hull colors
-    hull_col <- list()
-    for(i in 4:length(p1)) {
-      current_hull_col <-
-        merge(hull,
-              data.frame(label = rownames(p1), color = p1[,i]),
-              by.x = label.id,
-              by.y = "label")
-      hull_col[[i-3]] <- current_hull_col %>%
-        group_by(across(label.id)) %>%
-        slice(chull(SPATIAL_1, SPATIAL_2))
-    }
-
-    message("plotting points and hulls")
-    to_plot <- ggplot(img, aes(y, x)) +
-      geom_raster(aes(fill = color), alpha = he_alpha) +
-      geom_point( # create fake legend
-        data =
-          data.frame(
-            features = features,
-            x = 0,
-            y = 0),
-        aes(col = features))
-
-    for(i in 1:length(features)) {
-      to_plot <- to_plot +
-        geom_polygon(data = hull_col[[i]], aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = hull_col[[i]]$color, alpha = (intensity/3)/length(features), color = NA) +
-        geom_polygon(data = hull_col[[i]][as.character(as.vector(hull_col[[i]][label.id])[[1]]) %in% outline.hulls,],
-                     aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = "black") +
-        geom_point(data = points_to_plot, color = points_to_plot[,features[i]], size = pt_size*i, shape = 21, fill = NA, stroke = pt_size)
-    }
-
-    if(show.labels) {
-      to_plot <- to_plot +
-        geom_text_repel(data = (hull_col[[i]] %>% group_by(across(label.id)) %>% slice_head(n = 1)), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0)
-    }
-
-    if(is.null(b2c[["msd_col"]])) {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    } else {
-      print(
-        to_plot +
-          xlim(b2c$coord[[roi]]$xmin, b2c$coord[[roi]]$xmax) +
-          ylim(b2c$coord[[roi]]$ymax, b2c$coord[[roi]]$ymin) +
-          scale_fill_identity() +
-          scale_color_manual(breaks = features, values = b2c$msd_col[[2]], name = "") +
-          guides(color = guide_legend(override.aes = list(alpha = 1))) +
-          coord_fixed(ratio = 1) +
-          theme_void() +
-          theme(legend.position = "right")
-      )
-    }
+  # display plot or return object
+  if(plot) {
+    print(p)
+  } else {
+    p
   }
 }
+

@@ -11,11 +11,11 @@ You can install the development version of B2CViz from Gitlab with:
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following libraries: 'circlize', 'jpeg', 'png', 'tiff', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny'
+B2CViz depends on the following libraries: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
 
 ## Preprocessing
 
-B2CViz requires objects that have been processed by [Bin2cell](https://github.com/Teichlab/bin2cell). Two objects are required, the first one corresponds to the pre-aggregated object (generated after the `b2c.expand_labels` step), while the second is the final aggregated object (after `b2c.bin_to_cell`). Both anndata objects are converted using [sceasy](https://github.com/cellgeni/sceasy) and the following function:
+B2CViz requires objects that have been preprocessed by [Bin2cell](https://github.com/Teichlab/bin2cell). Two objects are required, the first one corresponds to the pre-aggregated object (generated after the `b2c.expand_labels` step), while the second is the final aggregated object (after `b2c.bin_to_cell`). Both anndata objects are converted using [sceasy](https://github.com/cellgeni/sceasy) and the following function:
 
 ``` r
 #devtools::install_github("cellgeni/sceasy")
@@ -30,7 +30,7 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
 
 ## Visualization
 
-To visualize data, load the objects, select a region of interest and call the plotting function:
+To visualize data, load the objects, select a region of interest and call the plotting functions:
 
 ``` r
 library(B2CViz)

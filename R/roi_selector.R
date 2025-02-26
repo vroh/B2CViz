@@ -1,3 +1,8 @@
+#' @import(shiny)
+#' @import(imager)
+#' @import(dplyr)
+NULL
+
 #' ROI Selector
 #'
 #' @param path Path to the image file used for bin2cell segmentation
