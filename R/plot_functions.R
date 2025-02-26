@@ -25,7 +25,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
       geom_point(aes(x = SPATIAL_1, y = SPATIAL_2, col = feat), alpha = scale(filter(df, feat > 0)$feat), size = pt.size) +
       coord_fixed(ratio = 1) +
       scale_fill_identity() +
-      scale_color_continuous(name = feat, low = col.low, col.high = "seagreen2") +
+      scale_color_continuous(name = feat, low = col.low, high = col.high) +
       xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
       ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
       theme_void() +
