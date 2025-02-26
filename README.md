@@ -7,11 +7,11 @@ B2CViz is an R package for bin2cell processed VisiumHD spatial single-cell data,
 You can install the development version of B2CViz from Gitlab with:
 
 ``` r
-# install.packages("devtools")
+install.packages("devtools")
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following libraries: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
+B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
 
 ## Preprocessing
 
@@ -30,28 +30,100 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
 
 ## Visualization
 
-To visualize data, load the objects, select a region of interest and call the plotting functions:
+To visualize data, load the objects, select a region of interest, crop it, and call the plotting functions
 
 ``` r
-library(B2CViz)
+object_pre <- readRDS("/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6_pre.rds")
+object_post <- readRDS("/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6_post.rds")
+image_path <- "/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6.jpg"
 
-# create bin2cell object (works with jpg or png, provide path to image used for bin2cell segmentation)
+# create bin2cell object (works with jpg or png, provide path to image used for bin2cell)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
 
-# set region of interest (choose a small region)
+# plot overview
+b2c <- scaledown_img(b2c = b2c)
+overview_b2c(b2c = b2c, feat = "Cdh1")
+
+# set region of interest
 b2c <- set_roi(b2c = b2c)
 
-# plot features
-# points is faster and require "post" object only
-# hulls require more computation time and both "pre" and "post" Seurat object
-plot_b2c_nn(b2c = b2c,
-            features = c("Feature1", "Feature2"),
-            intensity = 10,
-            he_alpha = 0.4,
-            pt_size = 0.5,
-            plot.type = c("points", "hulls"),
-            label.id = "labels_he_expanded"), # column name of the bin2cell segmentation feature
-            outline.hulls = c(7966))
+# crop b2c object using ROI limits
+b2c_1 <- crop_b2c(b2c, roi = 1)
+b2c_2 <- crop_b2c(b2c, roi = 2)
 ```
 
-More informations are available in the vignette
+### Default plot
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1")
+plot_b2c(b2c = b2c_2, feat = "Cdh1")
+```
+
+### Adjust cells transparency
+
+Set alpha.mid to a value above 0 to show all cells with positive feature counts
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1)
+```
+
+### Threshold for cells displayed
+
+Adjust min.visible to only show cells that have feature counts above the desired threshold
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1, min.visible = 2)
+```
+
+### H&E visibility adjustments
+
+Adjust the visibility of the displayed H&E picture with he_alpha
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1, min.visible = 2, he_alpha = 0.1)
+```
+
+### Cells display format
+
+Choose between points, hulls or a combination of the two
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", plot.type = "points")
+```
+
+### Gradient representation
+
+Differentiate level of counts with a gradient of 2 colors instead of transparency
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", col.mid = "lightblue", alpha.mid = 1, col.high = "orangered")
+```
+
+### Labels
+
+Show labels if you need to identify cells of interest (slow if too many cells are displayed, so keep the number of cells low!)
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", min.visible = 6, show.labels = T)
+```
+
+### Highlight cells of interest
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", outline.hulls = c(149249, 186039))
+```
+
+### Multiple features
+
+You can plot multiple features, in that case provide a set of colors (matching the number of features)
+
+``` r
+plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Ros1"), col.high = c("orangered", "seagreen2"))
+```
+
+min.visible,alpha.mid and alpha.high can be provided as vector when plotting multiple features to adjust parameters for each feature independently
+
+``` r
+plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Ros1"), min.visible = c(4, 0), col.high = c("orangered", "seagreen2"))
+```
+

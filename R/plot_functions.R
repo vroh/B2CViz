@@ -52,11 +52,11 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param plot Whether to display or return the plot
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
-                     col.mid = "orangered", col.high = "orangered", alpha.mid = 0, alpha.high = 1,
+                     col.mid = NULL, col.high = "orangered", alpha.mid = 0, alpha.high = 1,
                      pt.size = 1, he_alpha = 0.3, title = NULL,
                      plot.type = c("points", "hulls"), outline.hulls = NULL, show.labels = F, plot = T) {
 
-  # adjust parameters length
+  # adjust parameters
   if(length(min.visible) == 1) {
     min.visible <- rep(min.visible, length(feat))
   }
@@ -65,6 +65,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
   if(length(alpha.high) == 1) {
     alpha.high <- rep(alpha.high, length(feat))
+  }
+  if(is.null(col.mid)) {
+    col.mid <- col.high
   }
 
   # fetch data

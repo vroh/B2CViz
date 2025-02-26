@@ -5,41 +5,53 @@
 \title{Plot B2C object}
 \usage{
 plot_b2c(
-  b2c = NULL,
-  features = NULL,
-  roi = 1,
-  colors = NULL,
-  intensity = 10,
-  he_alpha = 0.4,
-  pt_size = 0.5,
-  plot.type = c("points", "hulls"),
+  b2c,
+  feat,
   label.id = "labels_he_expanded",
+  min.visible = 0,
+  col.mid = NULL,
+  col.high = "orangered",
+  alpha.mid = 0,
+  alpha.high = 1,
+  pt.size = 1,
+  he_alpha = 0.3,
+  title = NULL,
+  plot.type = c("points", "hulls"),
   outline.hulls = NULL,
-  show.labels = F
+  show.labels = F,
+  plot = T
 )
 }
 \arguments{
 \item{b2c}{B2C object}
 
-\item{features}{Features to plot}
-
-\item{roi}{index of the ROI to plot}
-
-\item{colors}{Color palette}
-
-\item{intensity}{Color intensity}
-
-\item{he_alpha}{Alpha value for H&E image}
-
-\item{pt_size}{Point size}
-
-\item{plot.type}{Type of plot}
+\item{feat}{Features to plot}
 
 \item{label.id}{Label ID of the bin2cell segmentation feature}
 
-\item{outline.hulls}{character vector of hulls to outline (by expanded labels ID)}
+\item{min.visible}{Feature value threshold for visualization (single value or vector for each feature)}
+
+\item{col.mid}{Mid color for colorscale (single value or vector for each feature)}
+
+\item{col.high}{High color for colorscale (single value or vector for each feature)}
+
+\item{alpha.mid}{Mid alpha value for colorscale (single value or vector for each feature)}
+
+\item{alpha.high}{High alpha value for colorscale (single value or vector for each feature)}
+
+\item{he_alpha}{Alpha value for H&E image}
+
+\item{title}{Plot title}
+
+\item{plot.type}{Type of plot (points or hulls or both)}
+
+\item{outline.hulls}{Character vector of hulls to outline (by expanded labels ID)}
 
 \item{show.labels}{Whether or not to plot the hulls labels}
+
+\item{plot}{Whether to display or return the plot}
+
+\item{pt_size}{Point size}
 }
 \description{
 Plot B2C object
