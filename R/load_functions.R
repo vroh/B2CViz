@@ -34,6 +34,19 @@ load_img <- function(path) {
 #' @return B2C object (A list containing pre, post, and image data)
 #' @export
 load_b2c <- function(pre = NULL, post = NULL, path = NULL) {
+
+  # load all required packages at once
+  library(png)
+  library(jpeg)
+  library(tiff)
+  library(dplyr)
+  library(shiny)
+  library(imager)
+  library(Seurat)
+  library(ggplot2)
+  library(ggrepel)
+  library(ggnewscale)
+
   b2c <- list(pre = pre, post = post, path = path)
   b2c$img <- load_img(path)
   b2c

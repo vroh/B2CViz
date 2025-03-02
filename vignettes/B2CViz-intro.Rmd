@@ -16,7 +16,7 @@ B2CViz is a package designed to help visualize VisiumHD spatial single-cell data
 
 # Setup
 
-The following libraries are required: 'circlize', 'jpeg', 'png', 'tiff', 'FNN', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny'
+The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
 
 # Loading Data
 
@@ -24,11 +24,11 @@ For this example, we'll assume you have processed Seurat objects with spatial da
 
 ``` r
 # Load your Seurat objects
-obj_pre <- readRDS("path/to/your/seurat_object.rds") # pre-aggregated object
-obj_post <- readRDS("path/to/your/seurat_object.rds") # post-aggregated object
+obj_pre <- readRDS("/path/to/your/seurat_object.rds") # pre-aggregated object
+obj_post <- readRDS("/path/to/your/seurat_object.rds") # post-aggregated object
 
 # Specify the path to the HD image file used by bin2cell (works with jpg or png)
-image_path <- "path/to/your/image.jpg"
+image_path <- "/path/to/your/image.jpg"
 
 # Create a bin2cell (B2C) object
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
@@ -43,35 +43,37 @@ To select a region of interest, use the set_roi function:
 b2c <- set_roi(b2c = b2c)
 ```
 
-This will open an interactive Shiny app where you can select your ROI.
+This will open an interactive Shiny app where you can select your ROIs.
 
 # Plotting Features
 
-Once you've selected your ROI, you can plot features using the plot_b2c function:
+To display the whole slide, use the scaledown and overview_b2c functions.
 
 ``` r
-# Plot points
-plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = "points")
-
-# Plot hulls
-plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = "hulls")
-
-# Plot both points and hulls
-plot_b2c_nn(b2c, features = c("feature1", "feature2"), plot.type = c("points", "hulls"))
+b2c <- scaledown_img(b2c = b2c)
+overview_b2c(b2c = b2c, feat = "Cdh1")
 ```
 
-# Customizing Plots
-
-You can customize various aspects of the plot:
+To visualize cell features at higher resolution, crop the region of interest and call plot_b2c function.
 
 ``` r
-plot_b2c_nn(b2c, 
-            features = c("feature1", "feature2"),
-            roi = 2,
-            colors = data.frame(mid = c("blue", "red"), high = c("lightblue", "pink")),
-            intensity = 15,
-            he_alpha = 0.3,
-            pt_size = 0.7,
-            plot.type = "points",
-            outline.hulls = c(7966))
+# crop b2c object using ROI limits
+b2c_1 <- crop_b2c(b2c, roi = 1)
+b2c_2 <- crop_b2c(b2c, roi = 2)
+
+# plot ROIs
+plot_b2c(b2c = b2c_1, feat = "Cdh1")
+plot_b2c(b2c = b2c_2, feat = "Cdh1")
+```
+
+Adjust parameters as needed (cells or H&E transparency, counts threshold for visibility, plotting colors etc) 
+
+``` r
+plot_b2c(b2c = b2c_1,
+         feat = "Cdh1",
+         alpha.mid = 0.1,
+         min.visible = 2,
+         he_alpha = 0.1,
+         col.high = "orangered",
+         outline.hulls = c(149249, 186039))
 ```

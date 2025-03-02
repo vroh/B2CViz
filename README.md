@@ -33,9 +33,9 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
 To visualize data, load the objects, select a region of interest, crop it, and call the plotting functions
 
 ``` r
-object_pre <- readRDS("/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6_pre.rds")
-object_post <- readRDS("/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6_post.rds")
-image_path <- "/net/sib-pc21/export/scratch/nadine/DEPALMA/LUQING/Visium_HD_jul2024/bin2cell/Lung_6.jpg"
+object_pre <- readRDS("/path/to/your/seurat_object.rds")
+object_post <- readRDS("/path/to/your/seurat_object.rds")
+image_path <- "/path/to/your/image.jpg"
 
 # create bin2cell object (works with jpg or png, provide path to image used for bin2cell)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
