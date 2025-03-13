@@ -10,7 +10,8 @@ overview_b2c(
   pt.size = 0.001,
   he_alpha = 0.4,
   col.low = "gray",
-  col.high = "seagreen2"
+  col.high = "seagreen2",
+  scalebar = 500
 )
 }
 \arguments{
@@ -19,6 +20,14 @@ overview_b2c(
 \item{feat}{Gene feature to plot}
 
 \item{pt.size}{Size of the points}
+
+\item{he_alpha}{Alpha value for H&E image}
+
+\item{col.low}{Low color for colorscale}
+
+\item{col.high}{High color for colorscale}
+
+\item{scalebar}{scalebar size in microns, FALSE for no scalebar}
 }
 \description{
 Plot spatial feature from a B2C object (requires scaled-down image)

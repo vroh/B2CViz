@@ -19,7 +19,10 @@ plot_b2c(
   plot.type = c("points", "hulls"),
   outline.hulls = NULL,
   show.labels = F,
-  plot = T
+  plot = T,
+  scalebar = 200,
+  scalebar.width = 10,
+  translate = T
 )
 }
 \arguments{
@@ -50,6 +53,12 @@ plot_b2c(
 \item{show.labels}{Whether or not to plot the hulls labels}
 
 \item{plot}{Whether to display or return the plot}
+
+\item{scalebar}{scalebar size in microns, FALSE for no scalebar}
+
+\item{scalebar.width}{width of the scalebar}
+
+\item{translate}{whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)}
 
 \item{pt_size}{Point size}
 }

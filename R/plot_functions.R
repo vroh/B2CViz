@@ -10,27 +10,80 @@ NULL
 #' @param b2c B2C object
 #' @param feat Gene feature to plot
 #' @param pt.size Size of the points
+#' @param he_alpha Alpha value for H&E image
+#' @param col.low Low color for colorscale
+#' @param col.high High color for colorscale
+#' @param scalebar scalebar size in microns, FALSE for no scalebar
 #' @export
-overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "gray", col.high = "seagreen2") {
+overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "gray", col.high = "seagreen2", scalebar = 500) {
 
-  if(is.null(b2c$img_sd)) {
+  if (is.null(b2c$img_sd)) {
     stop("run scaledown_img() on b2c object first")
   }
 
   df <- FeaturePlot(b2c$post, feat, reduction = "spatial")[[1]]$data
   colnames(df)[4] <- "feat"
-  print(
+
+  p <-
     ggplot(filter(df, feat > 0), aes(y, x)) +
-      geom_raster(data = b2c$img_sd, aes(fill = color), alpha = he_alpha) +
-      geom_point(aes(x = SPATIAL_1, y = SPATIAL_2, col = feat), alpha = scale(filter(df, feat > 0)$feat), size = pt.size) +
-      coord_fixed(ratio = 1) +
-      scale_fill_identity() +
-      scale_color_continuous(name = feat, low = col.low, high = col.high) +
-      xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
-      ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
-      theme_void() +
-      ggtitle(feat) +
-      theme(plot.title = element_text(hjust = 0.5)))
+    geom_raster(data = b2c$img_sd, aes(fill = color), alpha = he_alpha) +
+    geom_point(aes(x = SPATIAL_1, y = SPATIAL_2, col = feat),
+               alpha = scales::rescale(filter(df, feat > 0)$feat),
+               size = pt.size) +
+    coord_fixed(ratio = 1) +
+    scale_fill_identity() +
+    scale_color_continuous(name = feat, low = col.low, high = col.high) +
+    xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
+    ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
+    theme_void() +
+    ggtitle(feat) +
+    theme(plot.title = element_text(hjust = 0.5))
+
+  # scalebar
+  if(scalebar) {
+    meta <- cbind(b2c$pre@meta.data, b2c$pre@reductions$spatial@cell.embeddings)
+
+    # Calculate micron-to-plot conversion factor
+    adjacent_spots <- meta %>%
+      filter(array_col == min(array_col)) %>% # Same column
+      arrange(array_row) %>%
+      slice(1:2) # First two rows in same column
+
+    if(nrow(adjacent_spots) < 2) stop("Insufficient adjacent spots for scale calculation, can't add scalebar, set scalebar_micron = FALSE")
+
+    y_distance <- abs(adjacent_spots$SPATIAL_2[2] - adjacent_spots$SPATIAL_2[1])
+    microns_per_bin <- 2 # Your known bin spacing
+    plot_units_per_micron <- y_distance / microns_per_bin
+
+    # Convert desired microns to plot units
+    scalebar_adj <- scalebar * plot_units_per_micron
+
+    # Calculate scalebar position (bottom-left corner)
+    x_range <- range(df$SPATIAL_1)
+    y_range <- range(df$SPATIAL_2)
+    x_pos <- x_range[1] + 0.02 * diff(x_range)  # 2% from left edge
+    y_pos <- y_range[2] - 0.03 * diff(y_range)  # 3% from visual bottom (after flip)
+
+    # Add scalebar to plot
+    p <-
+      p +
+      annotate("rect",
+               xmin = x_pos, xmax = x_pos + scalebar_adj,
+               ymin = y_pos, ymax = y_pos + diff(y_range) * 0.01,
+               fill = "black",
+               color = NA
+      ) +
+      annotate("text",
+               x = x_pos + scalebar_adj / 2,
+               y = y_pos - diff(y_range) * 0.015, # Adjusted for better visibility
+               label = paste(scalebar, "μm"),
+               size = 3,
+               color = "black"
+      )
+  }
+
+  print(p)
+
 }
 
 #' Plot B2C object
@@ -50,11 +103,15 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
 #' @param plot Whether to display or return the plot
+#' @param scalebar scalebar size in microns, FALSE for no scalebar
+#' @param scalebar.width width of the scalebar
+#' @param translate whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.mid = NULL, col.high = "orangered", alpha.mid = 0, alpha.high = 1,
-                     pt.size = 1, he_alpha = 0.3, title = NULL,
-                     plot.type = c("points", "hulls"), outline.hulls = NULL, show.labels = F, plot = T) {
+                     pt.size = 1, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"),
+                     outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
+                     scalebar.width = 10, translate = T) {
 
   # adjust parameters
   if(length(min.visible) == 1) {
@@ -78,6 +135,19 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       group_by(across(label.id)) %>%
       slice(chull(SPATIAL_1, SPATIAL_2))
     df <- merge(df_post, df_pre, by = label.id)
+  }
+
+  # translate to origin
+  if(translate) {
+    translate_sp1 <- min(df$SPATIAL_1.y)
+    translate_sp2 <- min(df$SPATIAL_2.y)
+
+    df_post$SPATIAL_1 <- df_post$SPATIAL_1 - translate_sp1
+    df_post$SPATIAL_2 <- df_post$SPATIAL_2 - translate_sp2
+    df$SPATIAL_1.y <- df$SPATIAL_1.y - translate_sp1
+    df$SPATIAL_2.y <- df$SPATIAL_2.y - translate_sp2
+    b2c$img$x <- b2c$img$x - translate_sp2
+    b2c$img$y <- b2c$img$y - translate_sp1
   }
 
   # plot H&E
@@ -138,6 +208,32 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                    aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id), fill = NA, color = "black")
   }
 
+  # plot scalebar
+  if(scalebar) {
+    # Calculate scalebar position (bottom-left corner)
+    x_range <- range(df_post$SPATIAL_1)
+    y_range <- range(df_post$SPATIAL_2)
+    x_pos <- x_range[1]# + 0.02 * diff(x_range)  # 2% from left edge
+    y_pos <- y_range[2]# - 0.03 * diff(y_range)  # 3% from visual bottom (after flip)
+
+    # Add scalebar to plot
+    p <-
+      p +
+      annotate("rect",
+               xmin = x_pos, xmax = x_pos + scalebar / 2,
+               ymin = y_pos, ymax = y_pos + scalebar.width,
+               fill = "black",
+               color = NA
+      ) +
+      annotate("text",
+               x = x_pos + scalebar / 4,
+               y = y_pos + scalebar.width * 2.2, # Adjusted for better visibility
+               label = paste(scalebar, "μm"),
+               size = 3,
+               color = "black"
+      )
+  }
+
   # wrap plot
   p <-
     p +
@@ -145,7 +241,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     theme_void() +
     scale_y_reverse() +
     ggtitle(title) +
-    theme(plot.title = element_text(hjust = 0.5))
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.border = element_rect(fill = NA),
+          plot.margin = margin(5, 5, 5, 5))
 
   # display plot or return object
   if(plot) {
