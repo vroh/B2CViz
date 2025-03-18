@@ -67,6 +67,14 @@ Set alpha.mid to a value above 0 to show all cells with positive feature counts
 plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1)
 ```
 
+### Adjust color gradient scale
+
+Provide a list of vectors to ajust the minimum and maximum values of each color scale
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", scale.min.max = list(c(0,3)))
+```
+
 ### Threshold for cells displayed
 
 Adjust min.visible to only show cells that have feature counts above the desired threshold
@@ -111,6 +119,14 @@ plot_b2c(b2c = b2c_1, feat = "Cdh1", min.visible = 6, show.labels = T)
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "Cdh1", outline.hulls = c(149249, 186039))
+```
+
+### Prefilter to only keep cells of intterst
+
+You can select one feature and a threshold expression level to be used for data pre-filtering
+
+``` r
+plot_b2c(b2c = b2c_1, feat = "Cdh1", filter.feat = "Clu", filter.threshold = 2)
 ```
 
 ### Multiple features

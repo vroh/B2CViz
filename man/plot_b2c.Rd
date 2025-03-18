@@ -13,6 +13,7 @@ plot_b2c(
   col.high = "orangered",
   alpha.mid = 0,
   alpha.high = 1,
+  scale.min.max = NULL,
   pt.size = 1,
   he_alpha = 0.3,
   title = NULL,
@@ -22,7 +23,9 @@ plot_b2c(
   plot = T,
   scalebar = 200,
   scalebar.width = 10,
-  translate = T
+  translate = T,
+  filter.feat = NULL,
+  filter.threshold = 0
 )
 }
 \arguments{
@@ -42,6 +45,8 @@ plot_b2c(
 
 \item{alpha.high}{High alpha value for colorscale (single value or vector for each feature)}
 
+\item{scale.min.max}{List of vectors (of length 2) indicating the min and max value for the color gradient scale}
+
 \item{he_alpha}{Alpha value for H&E image}
 
 \item{title}{Plot title}
@@ -54,11 +59,15 @@ plot_b2c(
 
 \item{plot}{Whether to display or return the plot}
 
-\item{scalebar}{scalebar size in microns, FALSE for no scalebar}
+\item{scalebar}{Scalebar size in microns, FALSE for no scalebar}
 
 \item{scalebar.width}{width of the scalebar}
 
-\item{translate}{whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)}
+\item{translate}{Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)}
+
+\item{filter.feat}{Feature to pre-filter the data (e.g. keep only cells expressing this feature)}
+
+\item{filter.threshold}{Threshold level for filter.feat}
 
 \item{pt_size}{Point size}
 }

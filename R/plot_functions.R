@@ -96,6 +96,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param col.high High color for colorscale (single value or vector for each feature)
 #' @param alpha.mid Mid alpha value for colorscale (single value or vector for each feature)
 #' @param alpha.high High alpha value for colorscale (single value or vector for each feature)
+#' @param scale.min.max List of vectors (of length 2) indicating the min and max value for the color gradient scale
 #' @param pt_size Point size
 #' @param he_alpha Alpha value for H&E image
 #' @param title Plot title
@@ -103,15 +104,23 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
 #' @param plot Whether to display or return the plot
-#' @param scalebar scalebar size in microns, FALSE for no scalebar
+#' @param scalebar Scalebar size in microns, FALSE for no scalebar
 #' @param scalebar.width width of the scalebar
-#' @param translate whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
+#' @param translate Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
+#' @param filter.feat Feature to pre-filter the data (e.g. keep only cells expressing this feature)
+#' @param filter.threshold Threshold level for filter.feat
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
-                     col.mid = NULL, col.high = "orangered", alpha.mid = 0, alpha.high = 1,
+                     col.mid = NULL, col.high = "orangered", alpha.mid = 0, alpha.high = 1, scale.min.max = NULL,
                      pt.size = 1, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"),
                      outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
-                     scalebar.width = 10, translate = T) {
+                     scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0) {
+
+  # prefilter data?
+  if(!is.null(filter.feat)) {
+    b2c$post <- b2c$post[,colnames(b2c$post) %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
+    b2c$pre <- b2c$pre[,b2c$pre$labels_he_expanded2 %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
+  }
 
   # adjust parameters
   if(length(min.visible) == 1) {
@@ -139,15 +148,29 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   # translate to origin
   if(translate) {
-    translate_sp1 <- min(df$SPATIAL_1.y)
-    translate_sp2 <- min(df$SPATIAL_2.y)
+    if("hulls" %in% plot.type) {
 
-    df_post$SPATIAL_1 <- df_post$SPATIAL_1 - translate_sp1
-    df_post$SPATIAL_2 <- df_post$SPATIAL_2 - translate_sp2
-    df$SPATIAL_1.y <- df$SPATIAL_1.y - translate_sp1
-    df$SPATIAL_2.y <- df$SPATIAL_2.y - translate_sp2
-    b2c$img$x <- b2c$img$x - translate_sp2
-    b2c$img$y <- b2c$img$y - translate_sp1
+      translate_sp1 <- min(df$SPATIAL_1.y)
+      translate_sp2 <- min(df$SPATIAL_2.y)
+
+      df_post$SPATIAL_1 <- df_post$SPATIAL_1 - translate_sp1
+      df_post$SPATIAL_2 <- df_post$SPATIAL_2 - translate_sp2
+      df$SPATIAL_1.y <- df$SPATIAL_1.y - translate_sp1
+      df$SPATIAL_2.y <- df$SPATIAL_2.y - translate_sp2
+      b2c$img$x <- b2c$img$x - translate_sp2
+      b2c$img$y <- b2c$img$y - translate_sp1
+
+    } else {
+
+      translate_sp1 <- min(df_post$SPATIAL_1)
+      translate_sp2 <- min(df_post$SPATIAL_2)
+
+      df_post$SPATIAL_1 <- df_post$SPATIAL_1 - translate_sp1
+      df_post$SPATIAL_2 <- df_post$SPATIAL_2 - translate_sp2
+      b2c$img$x <- b2c$img$x - translate_sp2
+      b2c$img$y <- b2c$img$y - translate_sp1
+
+    }
   }
 
   # plot H&E
@@ -164,7 +187,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
+                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
     }
   } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
@@ -173,7 +198,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
-        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+                             limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
+                                        ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill()
     }
   } else if("points" %in% plot.type & "hulls" %in% plot.type) {
@@ -182,11 +209,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
-        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+                             limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
+                                        ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill() +
         geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i])) +
+        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
+                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
     }
   }
@@ -239,7 +270,8 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     p +
     coord_fixed(ratio = 1) +
     theme_void() +
-    scale_y_reverse() +
+    scale_x_continuous(expand = c(0, 30)) +
+    scale_y_reverse(expand = c(0, 30)) +
     ggtitle(title) +
     theme(plot.title = element_text(hjust = 0.5),
           panel.border = element_rect(fill = NA),
