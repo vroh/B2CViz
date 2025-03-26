@@ -92,8 +92,10 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param feat Features to plot
 #' @param label.id Label ID of the bin2cell segmentation feature
 #' @param min.visible Feature value threshold for visualization (single value or vector for each feature)
+#' @param col.low Low color for colorscale (single value or vector for each feature)
 #' @param col.mid Mid color for colorscale (single value or vector for each feature)
 #' @param col.high High color for colorscale (single value or vector for each feature)
+#' @param alpha.low Low alpha value for colorscale (single value or vector for each feature)
 #' @param alpha.mid Mid alpha value for colorscale (single value or vector for each feature)
 #' @param alpha.high High alpha value for colorscale (single value or vector for each feature)
 #' @param scale.min.max List of vectors (of length 2) indicating the min and max value for the color gradient scale
@@ -111,7 +113,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param filter.threshold Threshold level for filter.feat
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
-                     col.mid = NULL, col.high = "orangered", alpha.mid = 0, alpha.high = 1, scale.min.max = NULL,
+                     col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
                      pt.size = 1, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"),
                      outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
                      scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0) {
@@ -119,12 +121,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   # prefilter data?
   if(!is.null(filter.feat)) {
     b2c$post <- b2c$post[,colnames(b2c$post) %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
-    b2c$pre <- b2c$pre[,b2c$pre$labels_he_expanded2 %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
+    b2c$pre <- b2c$pre[,b2c$pre@meta.data[label.id][,1] %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
   }
 
   # adjust parameters
   if(length(min.visible) == 1) {
     min.visible <- rep(min.visible, length(feat))
+  }
+  if(length(alpha.low) == 1) {
+    alpha.low <- rep(alpha.low, length(feat))
   }
   if(length(alpha.mid) == 1) {
     alpha.mid <- rep(alpha.mid, length(feat))
@@ -134,6 +139,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
   if(is.null(col.mid)) {
     col.mid <- col.high
+  }
+  if(is.null(col.low)) {
+    col.low <- col.high
   }
 
   # fetch data
@@ -187,7 +195,11 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+        scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
+                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
+                              high = alpha(col.high[i], alpha = alpha.high[i]),
+                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                              na.value = "transparent",
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
@@ -198,7 +210,11 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
-        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+        scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
+                             mid = alpha(col.mid[i], alpha = alpha.mid[i]),
+                             high = alpha(col.high[i], alpha = alpha.high[i]),
+                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                             na.value = "transparent",
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill()
@@ -209,13 +225,21 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         p +
         geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
-        scale_fill_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+        scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
+                             mid = alpha(col.mid[i], alpha = alpha.mid[i]),
+                             high = alpha(col.high[i], alpha = alpha.high[i]),
+                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                             na.value = "transparent",
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill() +
         geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-        scale_color_gradient2(mid = alpha(col.mid[i], alpha = alpha.mid[i]), high = alpha(col.high[i], alpha = alpha.high[i]), na.value = "transparent",
+        scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
+                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
+                              high = alpha(col.high[i], alpha = alpha.high[i]),
+                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                              na.value = "transparent",
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
@@ -252,15 +276,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       p +
       annotate("rect",
                xmin = x_pos, xmax = x_pos + scalebar / 2,
-               ymin = y_pos, ymax = y_pos + scalebar.width,
+               ymin = y_pos, ymax = y_pos - scalebar.width,
                fill = "black",
                color = NA
       ) +
       annotate("text",
                x = x_pos + scalebar / 4,
-               y = y_pos + scalebar.width * 2.2, # Adjusted for better visibility
+               y = y_pos - scalebar.width * 3, # Adjusted for better visibility
                label = paste(scalebar, "μm"),
-               size = 3,
+               size = scalebar/100,
                color = "black"
       )
   }
@@ -270,8 +294,8 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     p +
     coord_fixed(ratio = 1) +
     theme_void() +
-    scale_x_continuous(expand = c(0, 30)) +
-    scale_y_reverse(expand = c(0, 30)) +
+    scale_x_continuous(expand = c(0, 5)) +
+    scale_y_reverse(expand = c(0, 5)) +
     ggtitle(title) +
     theme(plot.title = element_text(hjust = 0.5),
           panel.border = element_rect(fill = NA),

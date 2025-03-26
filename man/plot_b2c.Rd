@@ -9,9 +9,11 @@ plot_b2c(
   feat,
   label.id = "labels_he_expanded",
   min.visible = 0,
+  col.low = NULL,
   col.mid = NULL,
   col.high = "orangered",
-  alpha.mid = 0,
+  alpha.low = 0,
+  alpha.mid = 0.5,
   alpha.high = 1,
   scale.min.max = NULL,
   pt.size = 1,
@@ -37,9 +39,13 @@ plot_b2c(
 
 \item{min.visible}{Feature value threshold for visualization (single value or vector for each feature)}
 
+\item{col.low}{Low color for colorscale (single value or vector for each feature)}
+
 \item{col.mid}{Mid color for colorscale (single value or vector for each feature)}
 
 \item{col.high}{High color for colorscale (single value or vector for each feature)}
+
+\item{alpha.low}{Low alpha value for colorscale (single value or vector for each feature)}
 
 \item{alpha.mid}{Mid alpha value for colorscale (single value or vector for each feature)}
 

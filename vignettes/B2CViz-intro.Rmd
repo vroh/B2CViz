@@ -71,7 +71,7 @@ Adjust parameters as needed (cells or H&E transparency, counts threshold for vis
 ``` r
 plot_b2c(b2c = b2c_1,
          feat = "Cdh1",
-         alpha.mid = 0.1,
+         alpha.low = 0.1,
          min.visible = 2,
          he_alpha = 0.1,
          col.high = "orangered",

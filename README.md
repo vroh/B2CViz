@@ -61,15 +61,15 @@ plot_b2c(b2c = b2c_2, feat = "Cdh1")
 
 ### Adjust cells transparency
 
-Set alpha.mid to a value above 0 to show all cells with positive feature counts
+Set alpha.low to a value above 0 to show all cells with positive feature counts
 
 ``` r
-plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1)
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.low = 0.1)
 ```
 
 ### Adjust color gradient scale
 
-Provide a list of vectors to ajust the minimum and maximum values of each color scale
+Provide a list of vectors to adjust the minimum and maximum values of each color scale
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "Cdh1", scale.min.max = list(c(0,3)))
@@ -80,7 +80,7 @@ plot_b2c(b2c = b2c_1, feat = "Cdh1", scale.min.max = list(c(0,3)))
 Adjust min.visible to only show cells that have feature counts above the desired threshold
 
 ``` r
-plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1, min.visible = 2)
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.low = 0.1, min.visible = 2)
 ```
 
 ### H&E visibility adjustments
@@ -88,7 +88,7 @@ plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1, min.visible = 2)
 Adjust the visibility of the displayed H&E picture with he_alpha
 
 ``` r
-plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.mid = 0.1, min.visible = 2, he_alpha = 0.1)
+plot_b2c(b2c = b2c_1, feat = "Cdh1", alpha.low = 0.1, min.visible = 2, he_alpha = 0.1)
 ```
 
 ### Cells display format
@@ -104,7 +104,7 @@ plot_b2c(b2c = b2c_1, feat = "Cdh1", plot.type = "points")
 Differentiate level of counts with a gradient of 2 colors instead of transparency
 
 ``` r
-plot_b2c(b2c = b2c_1, feat = "Cdh1", col.mid = "lightblue", alpha.mid = 1, col.high = "orangered")
+plot_b2c(b2c = b2c_1, feat = "Cdh1", col.low = "lightblue", col.mid = "white", col.high = "orangered", alpha.low = 1, alpha.mid = 1)
 ```
 
 ### Labels
@@ -121,7 +121,7 @@ plot_b2c(b2c = b2c_1, feat = "Cdh1", min.visible = 6, show.labels = T)
 plot_b2c(b2c = b2c_1, feat = "Cdh1", outline.hulls = c(149249, 186039))
 ```
 
-### Prefilter to only keep cells of intterst
+### Prefilter to only keep cells of interest
 
 You can select one feature and a threshold expression level to be used for data pre-filtering
 
@@ -137,7 +137,7 @@ You can plot multiple features, in that case provide a set of colors (matching t
 plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Ros1"), col.high = c("orangered", "seagreen2"))
 ```
 
-min.visible,alpha.mid and alpha.high can be provided as vector when plotting multiple features to adjust parameters for each feature independently
+min.visible, alpha.low, alpha.mid and alpha.high can be provided as vector when plotting multiple features to adjust parameters for each feature independently
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Ros1"), min.visible = c(4, 0), col.high = c("orangered", "seagreen2"))
