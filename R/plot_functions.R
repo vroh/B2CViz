@@ -109,8 +109,8 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param scalebar Scalebar size in microns, FALSE for no scalebar
 #' @param scalebar.width width of the scalebar
 #' @param translate Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
-#' @param filter.feat Feature to pre-filter the data (e.g. keep only cells expressing this feature)
-#' @param filter.threshold Threshold level for filter.feat
+#' @param filter.feat Features to pre-filter the data (e.g. keep only cells expressing these features)
+#' @param filter.threshold Threshold (vector) levels for filter.feat
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
@@ -120,8 +120,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   # prefilter data?
   if(!is.null(filter.feat)) {
-    b2c$post <- b2c$post[,colnames(b2c$post) %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
-    b2c$pre <- b2c$pre[,b2c$pre@meta.data[label.id][,1] %in% (FetchData(b2c$post, filter.feat) %>% dplyr::filter(!!sym(filter.feat) > filter.threshold) %>% rownames())]
+    if(length(filter.threshold) == 1) {
+      filter.threshold <- rep(filter.threshold, length(filter.feat))
+    }
+    to_keep <- NULL
+    for(i in 1:length(filter.feat)) {
+      to_keep <- c(to_keep, (FetchData(b2c$post, filter.feat[i]) %>% dplyr::filter(!!sym(filter.feat[i]) > filter.threshold[i]) %>% rownames()))
+    }
+    b2c$post <- b2c$post[,colnames(b2c$post) %in% to_keep]
+    b2c$pre <- b2c$pre[,b2c$pre@meta.data[label.id][,1] %in% to_keep]
   }
 
   # adjust parameters
@@ -198,7 +205,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                               high = alpha(col.high[i], alpha = alpha.high[i]),
-                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, mean(scale.min.max[[i]])),
                               na.value = "transparent",
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
@@ -213,7 +220,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                              high = alpha(col.high[i], alpha = alpha.high[i]),
-                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, mean(scale.min.max[[i]])),
                              na.value = "transparent",
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
@@ -228,7 +235,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                              high = alpha(col.high[i], alpha = alpha.high[i]),
-                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                             midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, mean(scale.min.max[[i]])),
                              na.value = "transparent",
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
@@ -238,7 +245,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                               high = alpha(col.high[i], alpha = alpha.high[i]),
-                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, scale.min.max[[i]][2]/2),
+                              midpoint = ifelse(is.null(scale.min.max), max(df_post[feat[i]])/2, mean(scale.min.max[[i]])),
                               na.value = "transparent",
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
