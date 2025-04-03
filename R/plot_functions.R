@@ -192,7 +192,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   # plot cells
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) & filter.feat[i] != "") {
+      if(!is.null(filter.feat) && filter.feat[i] != "") {
         data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
                                  df_post[[filter.feat[i]]] > filter.threshold[i], ]
       } else {
@@ -213,7 +213,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     }
   } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) & filter.feat[i] != "") {
+      if(!is.null(filter.feat) && filter.feat[i] != "") {
         data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
                             df[[filter.feat[i]]] > filter.threshold[i], ]
       } else {
@@ -234,7 +234,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     }
   } else if("points" %in% plot.type & "hulls" %in% plot.type) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) & filter.feat[i] != "") {
+      if(!is.null(filter.feat) && filter.feat[i] != "") {
         data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
                                  df_post[[filter.feat[i]]] > filter.threshold[i], ]
         data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
@@ -271,9 +271,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   # plot labels
   if(show.labels) {
     for(i in 1:length(feat)) {
+      if(!is.null(filter.feat) && filter.feat[i] != "") {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
+                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
+      } else {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      }
       p <-
         p +
-        ggrepel::geom_text_repel(data = df_post[df_post[[feat[i]]] > min.visible[i] & df_post[[filter.feat[i]]] > filter.threshold[i], ],, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
+        ggrepel::geom_text_repel(data = data.points, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
     }
   }
 
