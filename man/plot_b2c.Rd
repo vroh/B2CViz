@@ -71,9 +71,9 @@ plot_b2c(
 
 \item{translate}{Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)}
 
-\item{filter.feat}{Feature to pre-filter the data (e.g. keep only cells expressing this feature)}
+\item{filter.feat}{Features to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)}
 
-\item{filter.threshold}{Threshold level for filter.feat}
+\item{filter.threshold}{Threshold (vector) levels for filter.feat}
 
 \item{pt_size}{Point size}
 }

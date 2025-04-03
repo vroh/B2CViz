@@ -109,7 +109,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param scalebar Scalebar size in microns, FALSE for no scalebar
 #' @param scalebar.width width of the scalebar
 #' @param translate Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
-#' @param filter.feat Features to pre-filter the data (e.g. keep only cells expressing these features)
+#' @param filter.feat Features to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)
 #' @param filter.threshold Threshold (vector) levels for filter.feat
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
@@ -123,12 +123,6 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     if(length(filter.threshold) == 1) {
       filter.threshold <- rep(filter.threshold, length(filter.feat))
     }
-    to_keep <- NULL
-    for(i in 1:length(filter.feat)) {
-      to_keep <- c(to_keep, (FetchData(b2c$post, filter.feat[i]) %>% dplyr::filter(!!sym(filter.feat[i]) > filter.threshold[i]) %>% rownames()))
-    }
-    b2c$post <- b2c$post[,colnames(b2c$post) %in% to_keep]
-    b2c$pre <- b2c$pre[,b2c$pre@meta.data[label.id][,1] %in% to_keep]
   }
 
   # adjust parameters
@@ -152,7 +146,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
 
   # fetch data
-  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat))
+  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, filter.feat))
   df_post[label.id] <- row.names(df_post)
   if("hulls" %in% plot.type) {
     df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
@@ -198,9 +192,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   # plot cells
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
+      if(!is.null(filter.feat) & filter.feat[i] != "") {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
+                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
+      } else {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      }
       p <-
         p +
-        geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
+        geom_point(data = data.points,
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
@@ -213,9 +213,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     }
   } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
     for(i in 1:length(feat)) {
+      if(!is.null(filter.feat) & filter.feat[i] != "") {
+        data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
+                            df[[filter.feat[i]]] > filter.threshold[i], ]
+      } else {
+        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      }
       p <-
         p +
-        geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
+        geom_polygon(data = data.hulls,
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
         scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
@@ -228,9 +234,18 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     }
   } else if("points" %in% plot.type & "hulls" %in% plot.type) {
     for(i in 1:length(feat)) {
+      if(!is.null(filter.feat) & filter.feat[i] != "") {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
+                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
+        data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
+                            df[[filter.feat[i]]] > filter.threshold[i], ]
+      } else {
+        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      }
       p <-
         p +
-        geom_polygon(data = dplyr::filter(df, !!sym(feat[i]) > min.visible[i]),
+        geom_polygon(data = data.hulls,
                      aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
         scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                              mid = alpha(col.mid[i], alpha = alpha.mid[i]),
@@ -240,7 +255,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill() +
-        geom_point(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]),
+        geom_point(data = data.points,
                    aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
@@ -258,7 +273,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     for(i in 1:length(feat)) {
       p <-
         p +
-        ggrepel::geom_text_repel(data = dplyr::filter(df_post, !!sym(feat[i]) > min.visible[i]), aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
+        ggrepel::geom_text_repel(data = df_post[df_post[[feat[i]]] > min.visible[i] & df_post[[filter.feat[i]]] > filter.threshold[i], ],, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
     }
   }
 
