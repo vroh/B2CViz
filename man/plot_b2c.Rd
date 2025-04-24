@@ -17,9 +17,11 @@ plot_b2c(
   alpha.high = 1,
   scale.min.max = NULL,
   pt.size = 1,
+  shape = NULL,
   he_alpha = 0.3,
   title = NULL,
   plot.type = c("points", "hulls"),
+  show.bins = "no",
   outline.hulls = NULL,
   show.labels = F,
   plot = T,
@@ -53,11 +55,15 @@ plot_b2c(
 
 \item{scale.min.max}{List of vectors (of length 2) indicating the min and max value for the color gradient scale}
 
+\item{shape}{Shape of the points. Defaults to solid circle (16) for 1 feature, empty circle (21) for multi-feature plot to better see multi-positive cells}
+
 \item{he_alpha}{Alpha value for H&E image}
 
 \item{title}{Plot title}
 
 \item{plot.type}{Type of plot (points or hulls or both)}
+
+\item{show.bins}{Whether to show the 2um bins data. Defaults to "no", use "yes" to show bins corresponding to the feature and "all" to show all bins data (in white)}
 
 \item{outline.hulls}{Character vector of hulls to outline (by expanded labels ID)}
 

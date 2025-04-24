@@ -4,7 +4,7 @@
 \alias{roi_selector}
 \title{ROI Selector}
 \usage{
-roi_selector(path, post)
+roi_selector(path, post = NULL)
 }
 \arguments{
 \item{path}{Path to the image file used for bin2cell segmentation}

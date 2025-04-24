@@ -100,9 +100,11 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param alpha.high High alpha value for colorscale (single value or vector for each feature)
 #' @param scale.min.max List of vectors (of length 2) indicating the min and max value for the color gradient scale
 #' @param pt_size Point size
+#' @param shape Shape of the points. Defaults to solid circle (16) for 1 feature, empty circle (21) for multi-feature plot to better see multi-positive cells
 #' @param he_alpha Alpha value for H&E image
 #' @param title Plot title
 #' @param plot.type Type of plot (points or hulls or both)
+#' @param show.bins Whether to show the 2um bins data. Defaults to "no", use "yes" to show bins corresponding to the feature and "all" to show all bins data (in white)
 #' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
 #' @param plot Whether to display or return the plot
@@ -114,7 +116,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
-                     pt.size = 1, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"),
+                     pt.size = 1, shape = NULL, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"), show.bins = "no",
                      outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
                      scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0) {
 
@@ -143,6 +145,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
   if(is.null(col.low)) {
     col.low <- col.high
+  }
+  if(is.null(shape)) {
+    shape <- ifelse(length(feat) > 1, 21, 16)
   }
 
   # fetch data
@@ -189,6 +194,23 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     scale_fill_identity() +
     ggnewscale::new_scale_fill()
 
+  # show bins
+  if(show.bins == "yes" | show.bins == "all") {
+    bins <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", feat))
+    colnames(bins) <- paste0(colnames(bins), "_bins")
+    bins$SPATIAL_1 <- bins$SPATIAL_1 - ifelse(translate, translate_sp1, 0)
+    bins$SPATIAL_2 <- bins$SPATIAL_2 - ifelse(translate, translate_sp2, 0)
+    for(i in 1:length(feat)) {
+      p <-
+        p +
+        geom_point(data = bins, aes(x = SPATIAL_1, y = SPATIAL_2, col = !!sym(paste0(feat[i], "_bins"))), size = 0.3) +
+        scale_color_gradient2(mid = ifelse(show.bins == "all", alpha("white", alpha = 0.65/length(feat)), alpha(col.mid[i], alpha = 0)),
+                              high = col.high[i],
+                              na.value = "transparent") +
+        ggnewscale::new_scale_color()
+    }
+  }
+
   # plot cells
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
@@ -201,7 +223,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       p <-
         p +
         geom_point(data = data.points,
-                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                               high = alpha(col.high[i], alpha = alpha.high[i]),
@@ -256,7 +278,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill() +
         geom_point(data = data.points,
-                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = 21, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+                   aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
         scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
                               high = alpha(col.high[i], alpha = alpha.high[i]),
@@ -336,4 +358,3 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     p
   }
 }
-
