@@ -80,27 +80,3 @@ scaledown_img <- function(b2c, grid.size = 10) {
   b2c$img_sd <- output
   b2c
 }
-
-#' Crop B2C object to the dimension of selected ROI
-#'
-#' @param b2c B2C object
-#' @param roi ROI id to crop from
-#' @param label.id Label ID of the bin2cell segmentation feature
-#' @return B2C object
-#' @export
-crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
-  cells_to_keep <- FetchData(b2c$post, c("SPATIAL_1", "SPATIAL_2"))
-  cells_to_keep <- filter(cells_to_keep,
-                          SPATIAL_1 >= b2c$coord[[roi]]$xmin,
-                          SPATIAL_1 <= b2c$coord[[roi]]$xmax,
-                          SPATIAL_2 >= b2c$coord[[roi]]$ymin,
-                          SPATIAL_2 <= b2c$coord[[roi]]$ymax)
-  b2c$post <- b2c$post[,colnames(b2c$post) %in% rownames(cells_to_keep)]
-  b2c$pre <- b2c$pre[,as.character(b2c$pre@meta.data[,label.id]) %in% rownames(cells_to_keep)]
-  b2c$img <- filter(b2c$img,
-                    y >= b2c$coord[[roi]]$xmin,
-                    y <= b2c$coord[[roi]]$xmax,
-                    x >= b2c$coord[[roi]]$ymin,
-                    x <= b2c$coord[[roi]]$ymax)
-  b2c
-}
