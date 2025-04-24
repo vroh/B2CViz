@@ -11,7 +11,7 @@ install.packages("devtools")
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
+B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr'
 
 ## Preprocessing
 
@@ -143,3 +143,18 @@ min.visible, alpha.low, alpha.mid and alpha.high can be provided as vector when 
 plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Ros1"), min.visible = c(4, 0), col.high = c("orangered", "seagreen2"))
 ```
 
+## Quantification
+
+Save the plot in a variable to compute cell-cell distances
+
+``` r
+p <- plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Cd4"), plot = F)
+output_data <- get_dist(p)
+```
+
+This generates a data frame containing all 2 by 2 distances, ids, and feature expression levels for the cells represented in the plot.  
+You can then plot the distribution of the distances with plot_dist()
+
+``` r
+plot_dist(output_data)
+```

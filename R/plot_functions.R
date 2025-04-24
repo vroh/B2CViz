@@ -358,3 +358,22 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     p
   }
 }
+
+#' Plot cell-cell distances distribution from a ROI plot (previously quantified with get_dist)
+#'
+#' @param df Data frame of distances (output from get_dist)
+#' @param binwidth Binwidth of the histograms
+#' @export
+plot_dist <- function(df, binwidth = 5) {
+  print(
+    ggplot(df, aes(x = distance, fill = neighbor_marker)) +
+      geom_histogram(binwidth = binwidth, color = NA, alpha = 0.3, position = "identity") +
+      stat_bin(binwidth = binwidth, aes(y = after_stat(count), group = neighbor_marker, color = neighbor_marker), geom = "smooth", se = FALSE, linewidth = 0.5, position = "identity") +
+      geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) %>% dplyr::summarise(meandist = mean(distance)), aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
+      facet_grid(origin_marker ~ ., scales = "free_y") +
+      xlab("distance (um)") +
+      theme_light() +
+      theme(strip.background = element_blank(),
+            strip.text = element_text(color = "black"))
+  )
+}

@@ -16,7 +16,7 @@ B2CViz is a package designed to help visualize VisiumHD spatial single-cell data
 
 # Setup
 
-The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale'
+The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr'
 
 # Loading Data
 
@@ -76,4 +76,12 @@ plot_b2c(b2c = b2c_1,
          he_alpha = 0.1,
          col.high = "orangered",
          outline.hulls = c(149249, 186039))
+```
+
+Compute cell-cell distances from plots
+
+``` r
+p <- plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Cd4"), plot = F)
+output_data <- get_dist(p)
+plot_dist(output_data)
 ```
