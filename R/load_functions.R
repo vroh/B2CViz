@@ -46,6 +46,7 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL) {
   library(ggplot2)
   library(ggrepel)
   library(ggnewscale)
+  library(tidyr)
 
   b2c <- list(pre = pre, post = post, path = path)
   b2c$img <- load_img(path)

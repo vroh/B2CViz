@@ -51,7 +51,7 @@ To display the whole slide, use the scaledown and overview_b2c functions.
 
 ``` r
 b2c <- scaledown_img(b2c = b2c)
-overview_b2c(b2c = b2c, feat = "Cdh1")
+overview_b2c(b2c = b2c, feat = "CDH1")
 ```
 
 To visualize cell features at higher resolution, crop the region of interest and call plot_b2c function.
@@ -62,15 +62,15 @@ b2c_1 <- crop_b2c(b2c, roi = 1)
 b2c_2 <- crop_b2c(b2c, roi = 2)
 
 # plot ROIs
-plot_b2c(b2c = b2c_1, feat = "Cdh1")
-plot_b2c(b2c = b2c_2, feat = "Cdh1")
+plot_b2c(b2c = b2c_1, feat = "CDH1")
+plot_b2c(b2c = b2c_2, feat = "CDH1")
 ```
 
 Adjust parameters as needed (cells or H&E transparency, counts threshold for visibility, plotting colors etc) 
 
 ``` r
 plot_b2c(b2c = b2c_1,
-         feat = "Cdh1",
+         feat = "CDH1",
          alpha.low = 0.1,
          min.visible = 2,
          he_alpha = 0.1,
@@ -81,7 +81,7 @@ plot_b2c(b2c = b2c_1,
 Compute cell-cell distances from plots
 
 ``` r
-p <- plot_b2c(b2c = b2c_1, feat = c("Cdh1", "Cd4"), plot = F)
+p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "CD4"), plot = F)
 output_data <- get_dist(p)
 plot_dist(output_data)
 ```

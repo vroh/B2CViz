@@ -107,12 +107,12 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param show.bins Whether to show the 2um bins data. Defaults to "no", use "yes" to show bins corresponding to the feature and "all" to show all bins data (in white)
 #' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
-#' @param plot Whether to display or return the plot
+#' @param plot Whether to display or return the plot and the data
 #' @param scalebar Scalebar size in microns, FALSE for no scalebar
 #' @param scalebar.width width of the scalebar
 #' @param translate Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
-#' @param filter.feat Features to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)
-#' @param filter.threshold Threshold (vector) levels for filter.feat
+#' @param filter.feat Features (list of vectors) to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)
+#' @param filter.threshold Threshold (list of vectors) levels for filter.feat
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
@@ -122,8 +122,8 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   # prefilter data?
   if(!is.null(filter.feat)) {
-    if(length(filter.threshold) == 1) {
-      filter.threshold <- rep(filter.threshold, length(filter.feat))
+    if(length(filter.threshold) == 1 & is.numeric(filter.threshold)) {
+      filter.threshold <- sapply(lapply(filter.feat, length), function(u) list(rep(filter.threshold, u)))
     }
   }
 
@@ -151,7 +151,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
 
   # fetch data
-  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, filter.feat))
+  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, unlist(filter.feat)))
   df_post[label.id] <- row.names(df_post)
   if("hulls" %in% plot.type) {
     df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
@@ -212,13 +212,20 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
 
   # plot cells
+  plotted <- NULL
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) && filter.feat[i] != "") {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
-                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      if(!is.null(filter.feat)) {
+        for(j in 1:length(filter.feat[[i]])) {
+          if(filter.feat[[i]][j] == "") {
+            next
+          } else {
+            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+          }
+        }
       }
       p <-
         p +
@@ -232,14 +239,21 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
+      plotted <- c(plotted, data.points[,length(data.points)])
     }
   } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) && filter.feat[i] != "") {
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
-                            df[[filter.feat[i]]] > filter.threshold[i], ]
-      } else {
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      if(!is.null(filter.feat)) {
+        for(j in 1:length(filter.feat[[i]])) {
+          if(filter.feat[[i]][j] == "") {
+            next
+          } else {
+            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+          }
+        }
       }
       p <-
         p +
@@ -253,17 +267,21 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                              limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                         ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_fill()
+      plotted <- c(plotted, data.points[,length(data.points)])
     }
   } else if("points" %in% plot.type & "hulls" %in% plot.type) {
     for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) && filter.feat[i] != "") {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
-                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i] &
-                            df[[filter.feat[i]]] > filter.threshold[i], ]
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+      if(!is.null(filter.feat)) {
+        for(j in 1:length(filter.feat[[i]])) {
+          if(filter.feat[[i]][j] == "") {
+            next
+          } else {
+            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+          }
+        }
       }
       p <-
         p +
@@ -287,22 +305,17 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
                               limits = c(ifelse(is.null(scale.min.max), min(df_post[feat[i]]), scale.min.max[[i]][1]),
                                          ifelse(is.null(scale.min.max), max(df_post[feat[i]]), scale.min.max[[i]][2]))) +
         ggnewscale::new_scale_color()
+      plotted <- c(plotted, data.points[,length(data.points)])
     }
   }
 
+  data.points <- df_post[df_post[, length(df_post)] %in% unique(plotted),]
+
   # plot labels
   if(show.labels) {
-    for(i in 1:length(feat)) {
-      if(!is.null(filter.feat) && filter.feat[i] != "") {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i] &
-                                 df_post[[filter.feat[i]]] > filter.threshold[i], ]
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-      }
-      p <-
-        p +
-        ggrepel::geom_text_repel(data = data.points, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
-    }
+    p <-
+      p +
+      ggrepel::geom_text_repel(data = data.points, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
   }
 
   # outline hulls
@@ -355,7 +368,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   if(plot) {
     print(p)
   } else {
-    p
+    list(plot = p, cells = data.points, threshold = min.visible)
   }
 }
 
@@ -371,7 +384,7 @@ plot_dist <- function(df, binwidth = 5) {
       stat_bin(binwidth = binwidth, aes(y = after_stat(count), group = neighbor_marker, color = neighbor_marker), geom = "smooth", se = FALSE, linewidth = 0.5, position = "identity") +
       geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) %>% dplyr::summarise(meandist = mean(distance)), aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
       facet_grid(origin_marker ~ ., scales = "free_y") +
-      xlab("distance (um)") +
+      xlab("distance (microns)") +
       theme_light() +
       theme(strip.background = element_blank(),
             strip.text = element_text(color = "black"))
