@@ -216,14 +216,12 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
       data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-      data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
       if(!is.null(filter.feat)) {
         for(j in 1:length(filter.feat[[i]])) {
           if(filter.feat[[i]][j] == "") {
             next
           } else {
             data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
           }
         }
       }

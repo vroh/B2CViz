@@ -12,7 +12,7 @@ editor_options:
 
 # Introduction
 
-B2CViz is a package designed to help visualize VisiumHD spatial single-cell data that has been segmented with bin2cell. This vignette will guide you through the basic usage of the package.
+B2CViz is a package designed to help visualize VisiumHD spatial single-cell data that has been segmented with Bin2cell. This vignette will guide you through the basic usage of the package.
 
 # Setup
 
@@ -20,7 +20,7 @@ The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 
 
 # Loading Data
 
-For this example, we'll assume you have processed Seurat objects with spatial data and the associated image file used for the bin2cell segmentation. Here's how you would typically load your data:
+For this example, we'll assume you have processed Seurat objects with spatial data and the associated image file used for the Bin2cell segmentation. Here's how you would typically load your data:
 
 ``` r
 # Load your Seurat objects
@@ -54,7 +54,7 @@ b2c <- scaledown_img(b2c = b2c)
 overview_b2c(b2c = b2c, feat = "CDH1")
 ```
 
-To visualize cell features at higher resolution, crop the region of interest and call plot_b2c function.
+To visualize cell features at higher resolution, crop the region of interest and call `plot_b2c` function.
 
 ``` r
 # crop b2c object using ROI limits

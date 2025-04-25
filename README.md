@@ -1,6 +1,6 @@
 # B2CViz
 
-B2CViz is an R package for bin2cell processed VisiumHD spatial single-cell data, including ROI selection and multi-feature plotting. Figures in this page were generated with bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
+B2CViz is an R package for bin2cell processed VisiumHD spatial single-cell data, including ROI selection, multi-feature plotting and quantification. Figures presented in this page were generated with Bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
 
 ![Original 2 microns bins, aggregated 8 microns bins, bin2cell centroids and B2CViz cells](man/figures/B2CViz.jpg)
 
@@ -34,21 +34,32 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
 To visualize data, load the objects, select a region of interest, crop it, and call the plotting functions
 
 ``` r
+library(B2CViz)
+library(Seurat)
 object_pre <- readRDS("/path/to/your/seurat_object.rds")
 object_post <- readRDS("/path/to/your/seurat_object.rds")
 image_path <- "/path/to/your/image.jpg"
 
+# Normalize bin2cell data
+object_post <- NormalizeData(object_post)
+
 # create bin2cell object (works with jpg or png, provide path to image used for bin2cell)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
+```
 
+### Overview
+
+``` r
 # plot overview
 b2c <- scaledown_img(b2c = b2c)
 overview_b2c(b2c = b2c, feat = "CDH1")
 ```
 
+![Overview plot](man/figures/overview.jpg)
+
 ### ROI selection
 
-Select your region of interest using set_roi() function. Draw rectangles or polygons and add the ROIs to the b2c object
+Select your region of interest using `set_roi()` function. Draw rectangles or polygons and add the ROIs to the b2c object
 
 ``` r
 # set region of interest
@@ -121,14 +132,14 @@ plot_b2c(b2c = b2c_1, feat = "CDH1", plot.type = "points")
 Differentiate level of counts with a gradient of 2 colors instead of transparency
 
 ``` r
-plot_b2c(b2c = b2c_1, feat = "CDH1", col.low = "blue", col.mid = "white", col.high = "orangered", alpha.low = 1, alpha.mid = 1)
+plot_b2c(b2c = b2c_1, feat = "CDH1", col.low = "blue", col.mid = "white", col.high = "red", alpha.low = 1, alpha.mid = 1)
 ```
 
 ![2-color scale](man/figures/Slide5.JPG)
 
 ### Labels
 
-Show labels if you need to identify cells of interest (slow if too many cells are displayed, so keep the number of cells low!)
+Show labels if you need to identify cells of interest (slow and overcrowded if too many cells are displayed, so keep the number of cells low!)
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "CDH1", min.visible = 3.5, show.labels = T)
@@ -144,9 +155,9 @@ plot_b2c(b2c = b2c_1, feat = "CDH1", outline.hulls = c(154900, 157962, 157507))
 
 ![Highlighting cells](man/figures/Slide7.JPG)
 
-### Prefilter to only keep cells of interest
+### Pre-filter to only keep cells of interest
 
-You can select features and threshold expression levels to be used for data pre-filtering. If using multiple features, add them in lists in the same order that the feat parameter.
+You can select features and threshold expression levels to be used for data pre-filtering. If using multiple features, add them in lists of vectors in the same order than the feat parameter.
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "CDH1", filter.feat = "CLU", filter.threshold = 5)
@@ -165,6 +176,14 @@ plot_b2c(b2c_1, c("CDH1", "CD19", "COL1A1", "MYH11"), plot.type = "hulls", col.h
 
 ![Multi-feature plot](man/figures/Slide9.JPG)
 
+If multiple features overlap a lot, it can be better to use centroids representation only to identify multi-positive cells more easily
+
+``` r
+plot_b2c(b2c_1, c("CD3E", "CD4"), plot.type = "points", col.high = c("dodgerblue", "orangered"))
+```
+
+![Overlapping features](man/figures/multi_overlap.jpg)
+
 min.visible, alpha.low, alpha.mid and alpha.high can be provided as vector when plotting multiple features to adjust parameters for each feature independently
 
 ``` r
@@ -182,8 +201,8 @@ p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "CD4"), min.visible = c(2, 2.5), plo
 output_data <- get_dist(p, radius = 1000)
 ```
 
-This generates a data frame containing all 2 by 2 distances, ids, and feature expression levels for the cells represented in the plot.\
-You can then plot the distribution of the distances with plot_dist()
+This generates a data frame containing all 2 by 2 distances, ids, and feature expression levels for the cells displayed in the plot.\
+You can then plot the distribution of the distances with `plot_dist()`
 
 ``` r
 plot_dist(output_data, binwidth = 20)
