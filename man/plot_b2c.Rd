@@ -29,7 +29,8 @@ plot_b2c(
   scalebar.width = 10,
   translate = T,
   filter.feat = NULL,
-  filter.threshold = 0
+  filter.threshold = 0,
+  filter.type = "or"
 )
 }
 \arguments{
@@ -80,6 +81,8 @@ plot_b2c(
 \item{filter.feat}{Features (list of vectors) to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)}
 
 \item{filter.threshold}{Threshold (list of vectors) levels for filter.feat}
+
+\item{filter.type}{Sets how the pre-filter should behave, can be either "or" (default) or "and". With the latter, cells have to pass the filter for every filtering features to be retained. With "or", passing any of the filter is sufficient}
 
 \item{pt_size}{Point size}
 }

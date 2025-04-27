@@ -113,12 +113,13 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 #' @param translate Whether or not to translate the plot to the (0, 0) origin (can be useful to adjust plot size when comparing multiple ROIs)
 #' @param filter.feat Features (list of vectors) to pre-filter the data (e.g. keep only cells expressing these features, order has to match order used in feat, use "" for no filtering)
 #' @param filter.threshold Threshold (list of vectors) levels for filter.feat
+#' @param filter.type Sets how the pre-filter should behave, can be either "or" (default) or "and". With the latter, cells have to pass the filter for every filtering features to be retained. With "or", passing any of the filter is sufficient
 #' @export
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
                      pt.size = 1, shape = NULL, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"), show.bins = "no",
                      outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
-                     scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0) {
+                     scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0, filter.type = "or") {
 
   # prefilter data?
   if(!is.null(filter.feat)) {
@@ -216,13 +217,26 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   if("points" %in% plot.type & !("hulls" %in% plot.type)) {
     for(i in 1:length(feat)) {
       data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-      if(!is.null(filter.feat)) {
-        for(j in 1:length(filter.feat[[i]])) {
-          if(filter.feat[[i]][j] == "") {
+      # perform pre-filtering
+      if (!is.null(filter.feat)) {
+        or_filter <- NULL
+        for (j in 1:length(filter.feat[[i]])) {
+          if (filter.feat[[i]][j] == "") {
             next
           } else {
-            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            if (exists("filter.type") && filter.type == "or") {
+              if (is.null(or_filter)) {
+                or_filter <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+              } else {
+                or_filter <- or_filter | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
+              }
+            } else {
+              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            }
           }
+        }
+        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter)) {
+          data.points <- data.points[or_filter, ]
         }
       }
       p <-
@@ -243,14 +257,31 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     for(i in 1:length(feat)) {
       data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
       data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
-      if(!is.null(filter.feat)) {
-        for(j in 1:length(filter.feat[[i]])) {
-          if(filter.feat[[i]][j] == "") {
+      # perform pre-filtering
+      if (!is.null(filter.feat)) {
+        or_filter_dp <- NULL
+        or_filter_dh <- NULL
+        for (j in 1:length(filter.feat[[i]])) {
+          if (filter.feat[[i]][j] == "") {
             next
           } else {
-            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            if (exists("filter.type") && filter.type == "or") {
+              if (is.null(or_filter_dp)) {
+                or_filter_dp <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+                or_filter_dh <- data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+              } else {
+                or_filter_dp <- or_filter_dp | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
+                or_filter_dh <- or_filter_dh | (data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
+              }
+            } else {
+              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+              data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            }
           }
+        }
+        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter_dp)) {
+          data.points <- data.points[or_filter_dp, ]
+          data.hulls <- data.hulls[or_filter_dh, ]
         }
       }
       p <-
@@ -271,14 +302,31 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     for(i in 1:length(feat)) {
       data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
       data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
-      if(!is.null(filter.feat)) {
-        for(j in 1:length(filter.feat[[i]])) {
-          if(filter.feat[[i]][j] == "") {
+      # perform pre-filtering
+      if (!is.null(filter.feat)) {
+        or_filter_dp <- NULL
+        or_filter_dh <- NULL
+        for (j in 1:length(filter.feat[[i]])) {
+          if (filter.feat[[i]][j] == "") {
             next
           } else {
-            data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            if (exists("filter.type") && filter.type == "or") {
+              if (is.null(or_filter_dp)) {
+                or_filter_dp <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+                or_filter_dh <- data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+              } else {
+                or_filter_dp <- or_filter_dp | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
+                or_filter_dh <- or_filter_dh | (data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
+              }
+            } else {
+              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+              data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+            }
           }
+        }
+        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter_dp)) {
+          data.points <- data.points[or_filter_dp, ]
+          data.hulls <- data.hulls[or_filter_dh, ]
         }
       }
       p <-

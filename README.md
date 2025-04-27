@@ -157,7 +157,7 @@ plot_b2c(b2c = b2c_1, feat = "CDH1", outline.hulls = c(154900, 157962, 157507))
 
 ### Pre-filter to only keep cells of interest
 
-You can select features and threshold expression levels to be used for data pre-filtering. If using multiple features, add them in lists of vectors in the same order than the feat parameter.
+You can select features and threshold expression levels to be used for data pre-filtering. If using multiple features, add them in lists of vectors in the same order than the feat parameter. Filters for multiple features are combined according to `filter.type` which can be either in `or` mode (default) or `ànd` mode.
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "CDH1", filter.feat = "CLU", filter.threshold = 5)
