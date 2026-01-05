@@ -4,7 +4,14 @@
 \alias{load_b2c}
 \title{Load B2C object}
 \usage{
-load_b2c(pre = NULL, post = NULL, path = NULL)
+load_b2c(
+  pre = NULL,
+  post = NULL,
+  path = NULL,
+  data = "b2c",
+  slice = NULL,
+  scale.factor = NULL
+)
 }
 \arguments{
 \item{pre}{Pre-aggregated Seurat object}
@@ -12,9 +19,15 @@ load_b2c(pre = NULL, post = NULL, path = NULL)
 \item{post}{Post-aggregated Seurat object}
 
 \item{path}{Path to the image file used for bin2cell segmentation}
+
+\item{data}{Type of input data, either bin2cell (b2c) or spaceranger}
+
+\item{slice}{Which slice to use in the object (only if using spaceranger data)}
+
+\item{scale.factor}{The scale factor of the image use (only if using spaceranger data)}
 }
 \value{
-B2C object (A list containing pre, post, and image data)
+B2C object (A list containing pre, post, image data and other object information)
 }
 \description{
 Load B2C object

@@ -12,11 +12,11 @@ editor_options:
 
 # Introduction
 
-B2CViz is a package designed to help visualize VisiumHD spatial single-cell data that has been segmented with Bin2cell. This vignette will guide you through the basic usage of the package.
+B2CViz is a package designed to help visualize VisiumHD spatial single-cell data that has been segmented with Bin2cell or spaceranger. This vignette will guide you through the basic usage of the package.
 
 # Setup
 
-The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr'
+The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr', 'sf'
 
 # Loading Data
 
@@ -24,14 +24,14 @@ For this example, we'll assume you have processed Seurat objects with spatial da
 
 ``` r
 # Load your Seurat objects
-obj_pre <- readRDS("/path/to/your/seurat_object.rds") # pre-aggregated object
-obj_post <- readRDS("/path/to/your/seurat_object.rds") # post-aggregated object
+obj_pre <- readRDS("/path/to/seurat_object.rds") # pre-aggregated object
+obj_post <- readRDS("/path/to/seurat_object.rds") # post-aggregated object
 
 # Specify the path to the HD image file used by bin2cell (works with jpg or png)
-image_path <- "/path/to/your/image.jpg"
+image_path <- "/path/to/image.jpg"
 
 # Create a bin2cell (B2C) object
-b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
+b2c <- load_b2c(pre = obj_pre, post = obj_post, path = image_path)
 ```
 
 # Selecting a Region of Interest (ROI)

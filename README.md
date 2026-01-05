@@ -1,6 +1,6 @@
 # B2CViz
 
-B2CViz is an R package for bin2cell processed VisiumHD spatial single-cell data, including ROI selection, multi-feature plotting and quantification. Figures presented in this page were generated with Bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
+B2CViz is an R package for bin2cell or spaceranger processed VisiumHD spatial single-cell data, including ROI selection, multi-feature plotting and quantification. Figures presented in this page were generated with Bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
 
 ![Original 2 microns bins, aggregated 8 microns bins, bin2cell centroids and B2CViz cells](man/figures/B2CViz.jpg)
 
@@ -13,11 +13,11 @@ install.packages("devtools")
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr'
+B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr', 'sf'
 
 ## Preprocessing
 
-B2CViz requires objects that have been preprocessed by [Bin2cell](https://github.com/Teichlab/bin2cell). Two objects are required, the first one corresponds to the pre-aggregated object (generated after the `b2c.expand_labels` step), while the second is the final aggregated object (after `b2c.bin_to_cell`). Both anndata objects are converted using [sceasy](https://github.com/cellgeni/sceasy) and the following function:
+Initial versions of B2CViz required objects that have been preprocessed by [Bin2cell](https://github.com/Teichlab/bin2cell). Two objects are required, the first one corresponds to the pre-aggregated object (generated after the `b2c.expand_labels` step), while the second is the final aggregated object (after `b2c.bin_to_cell`). Both anndata objects are converted using [sceasy](https://github.com/cellgeni/sceasy) and the following function:
 
 ``` r
 #devtools::install_github("cellgeni/sceasy")
@@ -29,6 +29,8 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
                      outFile='/path/to/obj.rds')
 ```
 
+Since January 2026, object that have been segmented directly with spaceranger can also be used (see how to use them below).
+
 ## Visualization
 
 To visualize data, load the objects, select a region of interest, crop it, and call the plotting functions
@@ -36,9 +38,9 @@ To visualize data, load the objects, select a region of interest, crop it, and c
 ``` r
 library(B2CViz)
 library(Seurat)
-object_pre <- readRDS("/path/to/your/seurat_object.rds")
-object_post <- readRDS("/path/to/your/seurat_object.rds")
-image_path <- "/path/to/your/image.jpg"
+object_pre <- readRDS("/path/to/seurat_object.rds")
+object_post <- readRDS("/path/to/seurat_object.rds")
+image_path <- "/path/to/image.jpg"
 
 # Normalize bin2cell data
 object_post <- NormalizeData(object_post)
@@ -46,6 +48,35 @@ object_post <- NormalizeData(object_post)
 # create bin2cell object (works with jpg or png, provide path to image used for bin2cell)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
 ```
+
+If you are using data directly segmented by spaceranger, you can load them as follows
+
+``` r
+# Specify the path to your Spaceranger outputs
+data.dir <- "/path/to/outs/"
+# Choose which data slice to use
+slice <- "slice1"
+
+# Load the Visium HD dataset with segmentations
+obj <- Load10X_Spatial(
+  data.dir = data.dir,
+  slice = slice,
+  bin.size = c("polygons")
+)
+
+# The scaling factor is required. For example, when using spaceranger's hires scale it is reported here:
+sf <- obj@images[[paste0(slice, ".polygons")]]@scale.factors$hires
+
+# Create a bin2cell (B2C) object
+image_path <- "/path/to/outs/segmented_outputs/spatial/tissue_hires_image.png"
+
+b2c <- load_b2c(post = obj, path = image_path, data = "spaceranger", slice = slice, scale.factor = sf)
+
+# normalize with NormalizeData or SCTransform (though latter probably better)
+b2c$post <- NormalizeData(b2c$post)
+```
+
+You can use spaceranger hires image as input, though I would recommend to generate a higher definition image. If you have massive OME-TIFF files, you can prepare jpgs of manageable size using [OT-LIP](https://gitlab.com/vroh/ot-lip)
 
 ### Overview
 

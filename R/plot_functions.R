@@ -3,6 +3,7 @@
 #' @import(ggrepel)
 #' @import(dplyr)
 #' @import(ggnewscale)
+#' @import(sf)
 NULL
 
 #' Plot spatial feature from a B2C object (requires scaled-down image)
@@ -41,17 +42,24 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 
   # scalebar
   if(scalebar) {
-    meta <- cbind(b2c$pre@meta.data, b2c$pre@reductions$spatial@cell.embeddings)
+    if(b2c$data == "b2c") {
+      meta <- cbind(b2c$pre@meta.data, b2c$pre@reductions$spatial@cell.embeddings)
 
-    # Calculate micron-to-plot conversion factor
-    adjacent_spots <- meta %>%
-      filter(array_col == min(array_col)) %>% # Same column
-      arrange(array_row) %>%
-      slice(1:2) # First two rows in same column
+      # Calculate micron-to-plot conversion factor
+      adjacent_spots <- meta %>%
+        filter(array_col == min(array_col)) %>% # Same column
+        arrange(array_row) %>%
+        slice(1:2) # First two rows in same column
 
-    if(nrow(adjacent_spots) < 2) stop("Insufficient adjacent spots for scale calculation, can't add scalebar, set scalebar_micron = FALSE")
+      if(nrow(adjacent_spots) < 2) stop("Insufficient adjacent spots for scale calculation, can't add scalebar, set scalebar_micron = FALSE")
 
-    y_distance <- abs(adjacent_spots$SPATIAL_2[2] - adjacent_spots$SPATIAL_2[1])
+      y_distance <- abs(adjacent_spots$SPATIAL_2[2] - adjacent_spots$SPATIAL_2[1])
+    }
+
+    if(b2c$data == "spaceranger") {
+      y_distance <- as.numeric(names(which.max(table(round(unlist(sapply(obj@images[[paste0(slice, ".polygons")]]@boundaries$segmentation@sf.data$geometry[1:100], function(u) as.numeric(dist(u[[1]][,1])))), 2)))))
+    }
+
     microns_per_bin <- 2 # Your known bin spacing
     plot_units_per_micron <- y_distance / microns_per_bin
 
@@ -84,6 +92,31 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
 
   print(p)
 
+}
+
+#' Helper function to extract polygon data from spaceranger object
+#'
+#' @param obj Seurat object
+#' @param slice Which slice to use
+#' @param label.id Label ID
+#' @return A data frame with polygon data
+#' @export
+# extract polygons
+extract_polygons <- function(obj = NULL, slice = NULL, label.id = "labels_he_expanded") {
+
+  # 1. Extract coordinates of all polygon vertices
+  seg <- obj@images[[paste0(slice, ".polygons")]]$segmentation@sf.data
+  coords <- st_coordinates(seg)
+
+  # 2. Combine with metadata
+  df <- data.frame(
+    cell_id = seg$cell_id[coords[,"L2"]],   # L2 indexes polygon ID
+    barcode = seg$barcodes[coords[,"L2"]],
+    x = coords[,1],
+    y = coords[,2]
+  )
+  colnames(df) <- c("cell_id", label.id, "SPATIAL_1", "SPATIAL_2")
+  df
 }
 
 #' Plot B2C object
@@ -155,9 +188,14 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, unlist(filter.feat)))
   df_post[label.id] <- row.names(df_post)
   if("hulls" %in% plot.type) {
-    df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
-      group_by(across(label.id)) %>%
-      slice(chull(SPATIAL_1, SPATIAL_2))
+    if(b2c$data == "b2c") {
+      df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
+        group_by(across(label.id)) %>%
+        slice(chull(SPATIAL_1, SPATIAL_2))
+    }
+    if(b2c$data == "spaceranger") {
+      df_pre <- extract_polygons(b2c$post, b2c$slice)
+    }
     df <- merge(df_post, df_pre, by = label.id)
   }
 

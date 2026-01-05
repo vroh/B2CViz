@@ -10,6 +10,7 @@ NULL
 #' @return list of ROI coordinates
 #' @export
 roi_selector <- function(path, post = NULL) {
+
   # --- State Management ---
   roi_coords_list <- reactiveVal(list()) # Stores final ROIs
   redraw_trigger <- reactiveVal(0) # Triggers plot redraws (mainly for polygon updates)
@@ -110,8 +111,8 @@ roi_selector <- function(path, post = NULL) {
 
       ext <- spatial_extent_orig()
       if (!is.null(ext)) {
-        rect(ext$xmin / x_scale, ext$ymin / y_scale,
-             ext$xmax / x_scale, ext$ymax / y_scale,
+        rect(ext$xmin / x_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1), ext$ymin / y_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1),
+             ext$xmax / x_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1), ext$ymax / y_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1),
              border = "green", lwd = 2, lty = "dashed")
       }
 
@@ -120,11 +121,11 @@ roi_selector <- function(path, post = NULL) {
         for (roi in current_rois) {
           if (roi$type == "rectangle") {
             coords <- roi$coords
-            rect(coords$xmin / x_scale, coords$ymin / y_scale,
-                 coords$xmax / x_scale, coords$ymax / y_scale,
+            rect(coords$xmin / x_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1), coords$ymin / y_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1),
+                 coords$xmax / x_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1), coords$ymax / y_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1),
                  border = "green", lwd = 2)
           } else if (roi$type == "polygon") {
-            poly_points_scaled <- lapply(roi$points, function(p) list(x = p$x / x_scale, y = p$y / y_scale))
+            poly_points_scaled <- lapply(roi$points, function(p) list(x = p$x / x_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1), y = p$y / y_scale * ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1)))
             polygon(sapply(poly_points_scaled, `[[`, "x"), sapply(poly_points_scaled, `[[`, "y"),
                     border = "green", lwd = 2)
           }
@@ -327,7 +328,7 @@ roi_selector <- function(path, post = NULL) {
     observeEvent(input$add_rect, {
       rect_orig <- selected_rectangle_orig()
       if (!is.null(rect_orig)) {
-        new_roi <- list(type = "rectangle", coords = rect_orig)
+        new_roi <- list(type = "rectangle", coords = lapply(rect_orig, function(x) x / ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1)))
         roi_coords_list(c(roi_coords_list(), list(new_roi))) # Update list
         showNotification("Rectangle ROI added.", type = "message")
 
@@ -381,7 +382,7 @@ roi_selector <- function(path, post = NULL) {
       poly_points <- isolate(current_polygon_points())
       # Check if drawing is finished and polygon is valid
       if (!isolate(drawing_mode()) && length(poly_points) >= 3) {
-        new_roi <- list(type = "polygon", points = poly_points)
+        new_roi <- list(type = "polygon", points = lapply(poly_points, function(pt) {lapply(pt, function(v) v / ifelse(b2c$data == "spaceranger", b2c$scale.factor, 1))}))
         roi_coords_list(c(roi_coords_list(), list(new_roi))) # Update list
         showNotification("Polygon ROI added.", type = "message")
 
@@ -416,7 +417,7 @@ roi_selector <- function(path, post = NULL) {
         for (i in seq_along(rois)) {
           roi <- rois[[i]]
           if (roi$type == "rectangle") {
-            cat(sprintf("ROI %d (Rect): xmin=%d, xmax=%d, ymin=%d, ymax=%d\n",
+            cat(sprintf("ROI %d (Rect): xmin=%0.f, xmax=%0.f, ymin=%0.f, ymax=%0.f\n",
                         i, roi$coords$xmin, roi$coords$xmax, roi$coords$ymin, roi$coords$ymax))
           } else if (roi$type == "polygon") {
             cat(sprintf("ROI %d (Poly): %d points\n", i, length(roi$points)))

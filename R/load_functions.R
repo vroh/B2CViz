@@ -2,6 +2,8 @@
 #' @import(jpeg)
 #' @import(tiff)
 #' @import(dplyr)
+#' @import(Seurat)
+#' @import(sf)
 NULL
 
 #' Load image file
@@ -26,16 +28,54 @@ load_img <- function(path) {
   imrgb
 }
 
+#' Helper function to convert spaceranger to bin2cell format
+#'
+#' @param obj Spaceranger object to convert
+#' @param slice Which slice to use
+#' @return A bin2cell-like object
+#' @export
+space2b2c <- function(obj = NULL, slice = NULL) {
+
+  # Populate the data slot
+  obj <- SetAssayData(
+    object = obj,
+    assay = "Spatial.Polygons",
+    layer = "data",
+    new.data = GetAssayData(obj[["Spatial.Polygons"]], layer = "counts")
+  )
+
+  # Create the dim reduction with spatial coordinates
+  coords <- obj@images[[paste0(slice, ".polygons")]]$centroids@coords
+  rownames(coords) <- obj@images[[paste0(slice, ".polygons")]]$centroids@cells
+  colnames(coords) <- c("SPATIAL_1", "SPATIAL_2")
+
+  spatial_dr <- Seurat::CreateDimReducObject(
+    embeddings = as.matrix(coords),
+    key = "SPATIAL_",
+    assay = "Spatial.Polygons"
+  )
+
+  obj[["spatial"]] <- spatial_dr
+  obj
+}
+
 #' Load B2C object
 #'
 #' @param pre Pre-aggregated Seurat object
 #' @param post Post-aggregated Seurat object
 #' @param path Path to the image file used for bin2cell segmentation
-#' @return B2C object (A list containing pre, post, and image data)
+#' @param data Type of input data, either bin2cell (b2c) or spaceranger
+#' @param slice Which slice to use in the object (only if using spaceranger data)
+#' @param scale.factor The scale factor of the image use (only if using spaceranger data)
+#' @return B2C object (A list containing pre, post, image data and other object information)
 #' @export
-load_b2c <- function(pre = NULL, post = NULL, path = NULL) {
-
-  # load all required packages at once
+load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice = NULL, scale.factor = NULL)
+{
+  if(data == "spaceranger") {
+    if(is.null(slice)) stop("Provide slice name when using spaceranger data")
+    if(is.null(scale.factor)) stop("Provide scale factor when using spaceranger data")
+    pre <- post
+  }
   library(png)
   library(jpeg)
   library(tiff)
@@ -47,9 +87,25 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL) {
   library(ggrepel)
   library(ggnewscale)
   library(tidyr)
-
+  library(sf)
   b2c <- list(pre = pre, post = post, path = path)
   b2c$img <- load_img(path)
+  b2c$data <- "b2c"
+  if(data == "spaceranger") {
+    b2c$data <- "spaceranger"
+    b2c$slice <- slice
+    # Rescale the image coordinates
+    b2c$img <- b2c$img %>%
+      dplyr::mutate(
+        x = x / scale.factor,
+        y = y / scale.factor
+      )
+    b2c$scale.factor <- scale.factor
+
+    # convert spaceranger to b2c
+    b2c$pre <- space2b2c(post, slice)
+    b2c$post <- space2b2c(post, slice)
+  }
   b2c
 }
 
