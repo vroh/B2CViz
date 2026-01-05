@@ -57,7 +57,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4, col.low = "
     }
 
     if(b2c$data == "spaceranger") {
-      y_distance <- as.numeric(names(which.max(table(round(unlist(sapply(obj@images[[paste0(slice, ".polygons")]]@boundaries$segmentation@sf.data$geometry[1:100], function(u) as.numeric(dist(u[[1]][,1])))), 2)))))
+      y_distance <- as.numeric(names(which.max(table(round(unlist(sapply(obj@images[[paste0(b2c$slice, ".polygons")]]@boundaries$segmentation@sf.data$geometry[1:100], function(u) as.numeric(dist(u[[1]][,1])))), 2)))))
     }
 
     microns_per_bin <- 2 # Your known bin spacing

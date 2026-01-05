@@ -1,6 +1,6 @@
 # B2CViz
 
-B2CViz is an R package for bin2cell or spaceranger processed VisiumHD spatial single-cell data, including ROI selection, multi-feature plotting and quantification. Figures presented in this page were generated with Bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
+B2CViz is an R package for bin2cell or Spaceranger processed VisiumHD spatial single-cell data, including ROI selection, multi-feature plotting and quantification. Figures presented in this page were generated with Bin2cell and B2CViz using data from [10x genomics](https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-human-breast-cancer-ff-ultima)
 
 ![Original 2 microns bins, aggregated 8 microns bins, bin2cell centroids and B2CViz cells](man/figures/B2CViz.jpg)
 
@@ -29,7 +29,7 @@ obj <- convertFormat(obj = "/path/to/obj.h5ad",
                      outFile='/path/to/obj.rds')
 ```
 
-Since January 2026, object that have been segmented directly with spaceranger can also be used (see how to use them below).
+Since January 2026, objects that have been segmented directly with Spaceranger can also be used (see how to use them below).
 
 ## Visualization
 
@@ -49,7 +49,7 @@ object_post <- NormalizeData(object_post)
 b2c <- load_b2c(pre = object_pre, post = object_post, path = image_path)
 ```
 
-If you are using data directly segmented by spaceranger, you can load them as follows
+If you are using data directly segmented by Spaceranger, you can load them as follows
 
 ``` r
 # Specify the path to your Spaceranger outputs
@@ -76,7 +76,7 @@ b2c <- load_b2c(post = obj, path = image_path, data = "spaceranger", slice = sli
 b2c$post <- NormalizeData(b2c$post)
 ```
 
-You can use spaceranger hires image as input, though I would recommend to generate a higher definition image. If you have massive OME-TIFF files, you can prepare jpgs of manageable size using [OT-LIP](https://gitlab.com/vroh/ot-lip)
+You can use Spaceranger's hires image as input, though I would recommend to generate a higher definition image. If you have massive OME-TIFF files, you can prepare jpgs of manageable size using [OT-LIP](https://gitlab.com/vroh/ot-lip)
 
 ### Overview
 
