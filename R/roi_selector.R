@@ -6,10 +6,12 @@ NULL
 #' ROI Selector
 #'
 #' @param path Path to the image file used for bin2cell segmentation
-#' @param post Post-aggregated Seurat object
+#' @param b2c B2C object
 #' @return list of ROI coordinates
 #' @export
-roi_selector <- function(path, post = NULL) {
+roi_selector <- function(path, b2c = NULL) {
+
+  post <- b2c$post
 
   # --- State Management ---
   roi_coords_list <- reactiveVal(list()) # Stores final ROIs
@@ -455,7 +457,7 @@ roi_selector <- function(path, post = NULL) {
 #' @return B2C object
 #' @export
 set_roi <- function(b2c = NULL) {
-  b2c$coord <- roi_selector(path = b2c$path, post = b2c$post)
+  b2c$coord <- roi_selector(path = b2c$path, b2c = b2c)
   b2c
 }
 
