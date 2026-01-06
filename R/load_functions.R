@@ -66,7 +66,7 @@ space2b2c <- function(obj = NULL, slice = NULL) {
 #' @param path Path to the image file used for bin2cell segmentation
 #' @param data Type of input data, either bin2cell (b2c) or spaceranger
 #' @param slice Which slice to use in the object (only if using spaceranger data)
-#' @param scale.factor The scale factor of the image use (only if using spaceranger data)
+#' @param scale.factor The scale factor of the image used (if using spaceranger data or if using a different image than the original bin2cell input image)
 #' @return B2C object (A list containing pre, post, image data and other object information)
 #' @export
 load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice = NULL, scale.factor = NULL)
@@ -87,19 +87,20 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice =
   library(ggrepel)
   library(ggnewscale)
   library(tidyr)
-  library(sf)
   b2c <- list(pre = pre, post = post, path = path)
   b2c$img <- load_img(path)
   b2c$data <- "b2c"
-  if(data == "spaceranger") {
-    b2c$data <- "spaceranger"
-    b2c$slice <- slice
+  if(!is.null(scale.factor)) {
     # Rescale the image coordinates
     b2c$img <- b2c$img %>%
       dplyr::mutate(
         x = x / scale.factor,
         y = y / scale.factor
       )
+  }
+  if(data == "spaceranger") {
+    b2c$data <- "spaceranger"
+    b2c$slice <- slice
     b2c$scale.factor <- scale.factor
 
     # convert spaceranger to b2c

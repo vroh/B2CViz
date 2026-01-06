@@ -24,7 +24,7 @@ load_b2c(
 
 \item{slice}{Which slice to use in the object (only if using spaceranger data)}
 
-\item{scale.factor}{The scale factor of the image use (only if using spaceranger data)}
+\item{scale.factor}{The scale factor of the image used (if using spaceranger data or if using a different image than the original bin2cell input image)}
 }
 \value{
 B2C object (A list containing pre, post, image data and other object information)

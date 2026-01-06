@@ -76,7 +76,7 @@ b2c <- load_b2c(post = obj, path = image_path, data = "spaceranger", slice = sli
 b2c$post <- NormalizeData(b2c$post)
 ```
 
-You can use Spaceranger's hires image as input, though I would recommend to generate a higher definition image. If you have massive OME-TIFF files, you can prepare jpgs of manageable size using [OT-LIP](https://gitlab.com/vroh/ot-lip)
+You can use Spaceranger's hires image as input, though I would recommend to generate a higher definition image. If you have massive OME-TIFF files, you can prepare jpgs of manageable size using [OT-LIP](https://gitlab.com/vroh/ot-lip). Record the scale factor used, it is required by the `load_b2c` function.
 
 ### Overview
 
@@ -103,7 +103,17 @@ b2c_2 <- crop_b2c(b2c, roi = 2)
 
 ![ROI selection](man/figures/roi_selector.jpg)
 
-### Default plot
+### Segmentation plot
+
+You can inspect the segmentation results by running
+
+``` r
+plot_segmentation(b2c = b2c_1)
+```
+
+### Feature plot
+
+The default feature plot function is `plot_b2c`
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "CDH1")

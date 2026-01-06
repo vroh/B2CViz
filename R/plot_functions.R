@@ -456,6 +456,41 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
 }
 
+#' Plot Segmentation from a B2C (cropped) object
+#'
+#' @param b2c B2C (cropped) object
+#' @param label.id Label ID of the bin2cell segmentation feature
+#' @param he_alpha Alpha value for H&E image
+#' @param color Outline color for the polygons
+#' @param linewidth Linewidth for the polygons
+#' @export
+plot_segmentation <- function(b2c, label.id = "labels_he_expanded", he_alpha = 1, color = "black", linewidth = 0.1) {
+
+  # fetch data
+  if(b2c$data == "b2c") {
+    df <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
+      group_by(across(label.id)) %>%
+      slice(chull(SPATIAL_1, SPATIAL_2))
+  }
+  if(b2c$data == "spaceranger") {
+    df <- extract_polygons(b2c$post, b2c$slice)
+  }
+  p <-
+    ggplot(df) +
+    geom_raster(data = b2c$img, aes(x = y, y = x, fill = color), alpha = he_alpha) +
+    geom_polygon(aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = color, linewidth = linewidth) +
+    scale_fill_identity() +
+    ggnewscale::new_scale_fill() +
+    coord_fixed(ratio = 1) +
+    theme_void() +
+    scale_x_continuous(expand = c(0, 5)) +
+    scale_y_reverse(expand = c(0, 5)) +
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.border = element_rect(fill = NA),
+          plot.margin = margin(5, 5, 5, 5))
+  p
+}
+
 #' Plot cell-cell distances distribution from a ROI plot (previously quantified with get_dist)
 #'
 #' @param df Data frame of distances (output from get_dist)
