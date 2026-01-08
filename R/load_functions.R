@@ -101,11 +101,15 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice =
   if(data == "spaceranger") {
     b2c$data <- "spaceranger"
     b2c$slice <- slice
-    b2c$scale.factor <- scale.factor
 
     # convert spaceranger to b2c
     b2c$pre <- space2b2c(post, slice)
     b2c$post <- space2b2c(post, slice)
+  }
+  if(is.null(scale.factor)) {
+    b2c$scale.factor <- 1
+  } else {
+    b2c$scale.factor <- scale.factor
   }
   b2c
 }

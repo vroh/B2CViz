@@ -4,12 +4,12 @@
 \alias{roi_selector}
 \title{ROI Selector}
 \usage{
-roi_selector(path, post = NULL)
+roi_selector(path, b2c = NULL)
 }
 \arguments{
 \item{path}{Path to the image file used for bin2cell segmentation}
 
-\item{post}{Post-aggregated Seurat object}
+\item{b2c}{B2C object}
 }
 \value{
 list of ROI coordinates

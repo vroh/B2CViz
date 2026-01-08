@@ -67,9 +67,8 @@ obj <- Load10X_Spatial(
 # The scaling factor is required. For example, when using spaceranger's hires scale it is reported here:
 sf <- obj@images[[paste0(slice, ".polygons")]]@scale.factors$hires
 
-# Create a bin2cell (B2C) object
+# Create a bin2cell (B2C) object, note that the `pre` argument is not required when using spaceranger data
 image_path <- "/path/to/outs/segmented_outputs/spatial/tissue_hires_image.png"
-
 b2c <- load_b2c(post = obj, path = image_path, data = "spaceranger", slice = slice, scale.factor = sf)
 
 # normalize with NormalizeData or SCTransform (though latter probably better)
