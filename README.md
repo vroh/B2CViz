@@ -230,6 +230,14 @@ min.visible, alpha.low, alpha.mid and alpha.high can be provided as vector when 
 plot_b2c(b2c = b2c_1, feat = c("CDH1", "CD4"), min.visible = c(2, 2.5), col.high = c("orangered", "seagreen2"))
 ```
 
+You can also pass discrete variables in the `feat` argument (in that case, one feature only), every level will be displayed by a different color (you can set yours in the `col.discrete` argument)
+
+``` r
+plot_b2c(b2c = b2c_1, feat = c("seurat_clusters"), plot.type = "hulls", discrete.alpha = 0.8)
+```
+
+![Discrete variables](man/figures/b2c_discrete.jpg)
+
 ## Quantification
 
 Save the plot in a variable to compute cell-cell distances

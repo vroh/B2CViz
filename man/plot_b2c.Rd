@@ -16,6 +16,9 @@ plot_b2c(
   alpha.mid = 0.5,
   alpha.high = 1,
   scale.min.max = NULL,
+  discrete.levels = NULL,
+  discrete.alpha = 1,
+  col.discrete = NULL,
   pt.size = 1,
   shape = NULL,
   he_alpha = 0.3,
@@ -55,6 +58,12 @@ plot_b2c(
 \item{alpha.high}{High alpha value for colorscale (single value or vector for each feature)}
 
 \item{scale.min.max}{List of vectors (of length 2) indicating the min and max value for the color gradient scale}
+
+\item{discrete.levels}{If the feature is a discrete variable, select which levels to display}
+
+\item{discrete.alpha}{If the feature is a discrete variable, set its transparency}
+
+\item{col.discrete}{If the feature is a discrete variable, display the levels with the provided vector of colors}
 
 \item{shape}{Shape of the points. Defaults to solid circle (16) for 1 feature, empty circle (21) for multi-feature plot to better see multi-positive cells}
 

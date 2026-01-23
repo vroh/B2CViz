@@ -11,6 +11,9 @@ overview_b2c(
   he_alpha = 0.4,
   col.low = "gray",
   col.high = "seagreen2",
+  discrete.levels = NULL,
+  discrete.alpha = 1,
+  col.discrete = NULL,
   scalebar = 500
 )
 }
@@ -26,6 +29,12 @@ overview_b2c(
 \item{col.low}{Low color for colorscale}
 
 \item{col.high}{High color for colorscale}
+
+\item{discrete.levels}{If the feature is a discrete variable, select which levels to display}
+
+\item{discrete.alpha}{If the feature is a discrete variable, set its transparency}
+
+\item{col.discrete}{If the feature is a discrete variable, display the levels with the provided vector of colors}
 
 \item{scalebar}{scalebar size in microns, FALSE for no scalebar}
 }
