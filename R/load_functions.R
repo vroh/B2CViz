@@ -4,6 +4,7 @@
 #' @import(dplyr)
 #' @import(Seurat)
 #' @import(sf)
+#' @import(RBioFormats)
 NULL
 
 #' Load image file
@@ -140,5 +141,34 @@ scaledown_img <- function(b2c, grid.size = 10) {
     dplyr::rename(x = "x_bin", y = "y_bin") %>%
     dplyr::mutate(color = rgb(r, g, b))
   b2c$img_sd <- output
+  b2c
+}
+
+#' Upscale ROI image using original OME-TIFF image
+#'
+#' @param b2c B2C (cropped) object
+#' @param path Path to the original OME-TIFF image
+#' @param series Index of the selected OME-TIFF image series
+#' @param resolution Index of the selected OME-TIFF image resolution
+#' @return B2C (cropped) object
+#' @export
+upscale_roi <- function(b2c, path, series = 1, resolution = 1) {
+  if(!requireNamespace("RBioFormats", quietly = TRUE)) stop("RBioFormats is required but not installed.")
+  library(RBioFormats)
+  print(read.metadata(path))
+  roi <- read.image(
+    path,
+    series = series,
+    resolution = resolution,
+    subset = list(X = seq(from = min(b2c$img$y), to = max(b2c$img$y)),
+                  Y = seq(from = min(b2c$img$x), to = max(b2c$img$x)))
+  )
+  roirgb <- data.frame(x = rep(seq(from = min(b2c$img$x), to = max(b2c$img$x)), each = diff(range(b2c$img$y))+1),
+                       y = rep(seq(from = min(b2c$img$y), to = max(b2c$img$y)), diff(range(b2c$img$x))+1))
+  roirgb$r <- as.vector(roi@.Data[, , 1])
+  roirgb$g <- as.vector(roi@.Data[, , 2])
+  roirgb$b <- as.vector(roi@.Data[, , 3])
+  roirgb$color <- rgb(roirgb$r, roirgb$g, roirgb$b)
+  b2c$img <- roirgb
   b2c
 }

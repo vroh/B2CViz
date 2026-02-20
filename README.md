@@ -13,7 +13,8 @@ install.packages("devtools")
 devtools::install_gitlab("vroh/B2CViz")
 ```
 
-B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr', 'sf'
+B2CViz depends on the following packages: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr', 'sf'\
+The `upscale_roi` function depends on the 'RBioFormats' package and an original OME-TIFF image.
 
 ## Preprocessing
 
@@ -101,6 +102,14 @@ b2c_2 <- crop_b2c(b2c, roi = 2)
 ```
 
 ![ROI selection](man/figures/roi_selector.jpg)
+
+Eventually, the tissue image can be replaced by the same ROI area extracted from the original OME-TIFF image for best quality results
+
+``` r
+# replace image with original high-resolution image
+b2c_1 <- crop_b2c(b2c_1, "/path/to/original_OME.tiff")
+b2c_2 <- crop_b2c(b2c_2, "/path/to/original_OME.tiff")
+```
 
 ### Segmentation plot
 
