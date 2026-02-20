@@ -107,8 +107,8 @@ Eventually, the tissue image can be replaced by the same ROI area extracted from
 
 ``` r
 # replace image with original high-resolution image
-b2c_1 <- crop_b2c(b2c_1, "/path/to/original_OME.tiff")
-b2c_2 <- crop_b2c(b2c_2, "/path/to/original_OME.tiff")
+b2c_1 <- upscale_roi(b2c_1, "/path/to/original_OME.tiff")
+b2c_2 <- upscale_roi(b2c_2, "/path/to/original_OME.tiff")
 ```
 
 ### Segmentation plot
