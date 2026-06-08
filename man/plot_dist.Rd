@@ -7,7 +7,7 @@
 plot_dist(df, binwidth = 5)
 }
 \arguments{
-\item{df}{Data frame of distances (output from get_dist)}
+\item{df}{Data frame of distances (output from get_dist, i.e. the \code{distances} element)}
 
 \item{binwidth}{Binwidth of the histograms}
 }

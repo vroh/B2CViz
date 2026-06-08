@@ -1,14 +1,39 @@
 Package: B2CViz
 Type: Package
 Title: Spatial Visualization Tools for Bin2cell Processed VisiumHD Data
-Version: 0.1.1
+Version: 0.2.0
 Author: Vincent Roh
 Maintainer: Vincent Roh <vincent.roh@sib.swiss>
-Description: Tools for visualizing Bin2cell processed VisiumHD spatial single-cell data, including ROI selection and multi-feature plotting.
+Description: Tools for visualizing Bin2cell processed VisiumHD spatial single-cell data, including ROI selection and multi-feature plotting, neighborhood distance analysis, and hoodscanR integration.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
-Suggests: knitr, rmarkdown
-Imports: Seurat, png, jpeg, tiff, shiny, imager, ggplot2, ggrepel, dplyr, ggnewscale
+Suggests:
+    knitr,
+    rmarkdown,
+    RBioFormats,
+    sf,
+    SpatialExperiment,
+    hoodscanR,
+    SingleCellExperiment,
+    circlize,
+    ComplexHeatmap
+Imports:
+    Seurat,
+    png,
+    jpeg,
+    tiff,
+    shiny,
+    imager,
+    ggplot2,
+    ggrepel,
+    dplyr,
+    ggnewscale,
+    tidyr,
+    FNN,
+    purrr,
+    scales,
+    httpuv,
+    rlang
 VignetteBuilder: knitr

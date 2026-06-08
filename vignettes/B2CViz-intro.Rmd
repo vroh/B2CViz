@@ -12,76 +12,321 @@ editor_options:
 
 # Introduction
 
-B2CViz is a package designed to help visualize VisiumHD spatial single-cell data that has been segmented with Bin2cell or spaceranger. This vignette will guide you through the basic usage of the package.
+B2CViz is a package designed to help visualize and analyze VisiumHD spatial single-cell data that has been segmented with Bin2cell or Spaceranger. This vignette covers:
+
+1. Loading data and building a B2C object
+2. Selecting regions of interest and visualizing features
+3. Computing pairwise cell-cell distances
+4. Running the neighborhood analysis pipeline
+5. Converting B2C objects for hoodscanR / Statial analysis
 
 # Setup
 
-The following libraries are required: 'jpeg', 'png', 'tiff', 'Seurat', 'dplyr', 'ggplot2', 'ggrepel', 'imager', 'shiny', 'ggnewscale', 'tidyr', 'sf'
+B2CViz and its required packages are loaded automatically when you call `library(B2CViz)`. The following optional Bioconductor packages are needed for the hoodscanR integration and heatmap plotting functions:
+
+``` r
+BiocManager::install(c("SpatialExperiment", "hoodscanR", "SingleCellExperiment",
+                       "circlize", "ComplexHeatmap"))
+```
 
 # Loading Data
 
-For this example, we'll assume you have processed Seurat objects with spatial data and the associated image file used for the Bin2cell segmentation. Here's how you would typically load your data:
+## Bin2cell workflow
+
+Two Seurat objects are needed: the pre-aggregated object (after `b2c.expand_labels`) and the post-aggregated object (after `b2c.bin_to_cell`). Convert them from AnnData with [sceasy](https://github.com/cellgeni/sceasy) and load them as follows:
 
 ``` r
-# Load your Seurat objects
-obj_pre <- readRDS("/path/to/seurat_object.rds") # pre-aggregated object
-obj_post <- readRDS("/path/to/seurat_object.rds") # post-aggregated object
+library(B2CViz)
 
-# Specify the path to the HD image file used by bin2cell (works with jpg or png)
+obj_pre  <- readRDS("/path/to/pre_object.rds")
+obj_post <- readRDS("/path/to/post_object.rds")
 image_path <- "/path/to/image.jpg"
 
-# Create a bin2cell (B2C) object
+obj_post <- NormalizeData(obj_post)
+
 b2c <- load_b2c(pre = obj_pre, post = obj_post, path = image_path)
 ```
 
-# Selecting a Region of Interest (ROI)
-
-To select a region of interest, use the set_roi function:
+## Spaceranger workflow
 
 ``` r
-# set region of interest
-b2c <- set_roi(b2c = b2c)
+data.dir <- "/path/to/outs/"
+slice    <- "slice1"
+
+obj <- Load10X_Spatial(data.dir = data.dir, slice = slice, bin.size = "polygons")
+sf  <- obj@images[[paste0(slice, ".polygons")]]@scale.factors$hires
+
+image_path <- "/path/to/outs/segmented_outputs/spatial/tissue_hires_image.png"
+b2c <- load_b2c(post = obj, path = image_path,
+                data = "spaceranger", slice = slice, scale.factor = sf)
+
+b2c$post <- NormalizeData(b2c$post)
 ```
 
-This will open an interactive Shiny app where you can select your ROIs.
+# Selecting Regions of Interest
 
-# Plotting Features
+Use `set_roi()` to open an interactive Shiny app where you can draw rectangle or polygon ROIs. Then crop the B2C object to each ROI.
 
-To display the whole slide, use the scaledown and overview_b2c functions.
+``` r
+b2c   <- set_roi(b2c = b2c)
+b2c_1 <- crop_b2c(b2c, roi = 1)
+b2c_2 <- crop_b2c(b2c, roi = 2)
+```
+
+Optionally, replace the downscaled tissue image with a region extracted from the original OME-TIFF for best quality:
+
+``` r
+b2c_1 <- upscale_roi(b2c_1, "/path/to/original_OME.tiff")
+```
+
+# Visualizing Features
+
+## Whole-slide overview
 
 ``` r
 b2c <- scaledown_img(b2c = b2c)
 overview_b2c(b2c = b2c, feat = "CDH1")
 ```
 
-To visualize cell features at higher resolution, crop the region of interest and call `plot_b2c` function.
+## Segmentation inspection
 
 ``` r
-# crop b2c object using ROI limits
-b2c_1 <- crop_b2c(b2c, roi = 1)
-b2c_2 <- crop_b2c(b2c, roi = 2)
+plot_segmentation(b2c = b2c_1)
+```
 
-# plot ROIs
+## Feature plots with `plot_b2c`
+
+`plot_b2c` accepts a wide range of parameters to control appearance. A
+few examples:
+
+``` r
+# Basic plot
 plot_b2c(b2c = b2c_1, feat = "CDH1")
-plot_b2c(b2c = b2c_2, feat = "CDH1")
-```
 
-Adjust parameters as needed (cells or H&E transparency, counts threshold for visibility, plotting colors etc) 
-
-``` r
+# Adjust transparency, threshold, and H&E visibility
 plot_b2c(b2c = b2c_1,
-         feat = "CDH1",
-         alpha.low = 0.1,
+         feat      = "CDH1",
+         alpha.low  = 0.1,
          min.visible = 2,
-         he_alpha = 0.1,
-         col.high = "orangered",
-         outline.hulls = c(149249, 186039))
+         he_alpha   = 0.1,
+         col.high   = "orangered")
+
+# Multiple features with per-feature parameter vectors
+plot_b2c(b2c = b2c_1,
+         feat       = c("CDH1", "CD4"),
+         min.visible = c(2, 2.5),
+         col.high   = c("orangered", "seagreen2"))
+
+# Discrete metadata column (e.g. cluster labels)
+plot_b2c(b2c = b2c_1, feat = "seurat_clusters",
+         plot.type = "hulls", discrete.alpha = 0.8)
+
+# Highlight specific cells
+plot_b2c(b2c = b2c_1, feat = "CDH1",
+         outline.hulls = c(154900, 157962, 157507))
+
+# Pre-filter to cells above a threshold in another feature
+plot_b2c(b2c = b2c_1, feat = "CDH1",
+         filter.feat = "CLU", filter.threshold = 5)
 ```
 
-Compute cell-cell distances from plots
+# Quantification
+
+## Cell-cell distances with `get_dist`
+
+Call `plot_b2c` with `plot = FALSE` to obtain the internal data structure,
+then pass it to `get_dist`. `get_dist` returns a **list**:
+
+- `$distances` — data frame of all origin–neighbor pairs within `radius`, with
+  columns `origin_name`, `origin_marker`, `origin_value`, `neighbor_name`,
+  `neighbor_marker`, `neighbor_value`, `distance`
+- `$locations` — data frame of all displayed cells with columns `cell_id`,
+  `x`, `y`
+
+The `plot_b2c` return value also includes `$step`, the median nearest-neighbour
+step size in plot coordinates (needed to scale distances to microns downstream).
 
 ``` r
-p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "CD4"), plot = F)
-output_data <- get_dist(p)
-plot_dist(output_data)
+p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+d <- get_dist(p, radius = 500)
+
+# quick distance distribution
+plot_dist(d$distances, binwidth = 20)
+```
+
+## Neighborhood analysis pipeline
+
+The pipeline takes a combined, annotated edge table from one or more ROIs and
+conditions, runs a series of summaries, and supports group comparisons.
+
+### 1. Collect and annotate get_dist output
+
+``` r
+p1 <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+p2 <- plot_b2c(b2c = b2c_2, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+
+d1 <- get_dist(p1, radius = 500)
+d2 <- get_dist(p2, radius = 500)
+
+d1$distances$roi   <- "roi_1"
+d1$distances$group <- "tumor"
+d2$distances$roi   <- "roi_2"
+d2$distances$group <- "stroma"
+
+combined <- rbind(d1$distances, d2$distances)
+```
+
+### 2. Standardize column names
+
+`standardize_get_dist` renames and type-coerces columns to the canonical
+format required by all downstream functions:
+
+``` r
+edges <- standardize_get_dist(combined,
+                              origin_type_col   = "origin_value",
+                              neighbor_type_col = "neighbor_value")
+```
+
+### 3. Optional QC
+
+``` r
+qc <- check_get_dist_table(edges)
+str(qc)
+```
+
+### 4. Run the full pipeline
+
+`mean_step` (from `p$step`) rescales the distance breakpoints from internal
+plot units to microns:
+
+``` r
+res <- run_full_pipeline(edges, mean_step = p1$step)
+```
+
+The result is a named list:
+
+| Element | Description |
+|---|---|
+| `$qc` | Sanity checks on the edge table |
+| `$pair_stats` | Per-ROI pairwise neighborhood statistics |
+| `$radial_stats` | Per-ROI radial distance-bin profiles |
+| `$cumulative_stats` | Cumulative neighbor counts at a series of radii |
+| `$group_pair_stats` | Cross-ROI group-level summaries |
+| `$cells` | Cell-type abundance per ROI |
+
+Optionally rescale distance columns back to microns:
+
+``` r
+res <- rescale_res_distances(res, factor = p1$step)
+```
+
+### 5. Compare groups
+
+``` r
+cmp <- compare_groups(res$pair_stats,
+                      metric  = "mean_neighbors_per_origin",
+                      group_a = "tumor",
+                      group_b = "stroma")
+head(cmp)
+```
+
+### 6. Plot results
+
+``` r
+# Point plot: mean neighbors per origin, faceted by neighbor type
+plot_stats(res, table = "pair_stats", focus = "Tumor",
+           x = "group", y = "mean_neighbors_per_origin",
+           facet_y = "neighbor_type", group = "group")
+
+# Radial profile across distance bins
+plot_stats(res, table = "radial_stats", focus = "Tumor",
+           x = "dist_bin", y = "mean_neighbors_per_origin_bin",
+           facet_y = "neighbor_type", group = "group")
+
+# Group-level heatmap (requires ComplexHeatmap and circlize)
+plot_hm(res, focus = "Tumor", metric = "mean_neighbors_per_origin_mean")
+
+# 2-D neighbor density map centered on a focal origin cell type
+plot_density(list(roi_1 = d1), roi = "roi_1",
+             origin = "Tumor", neighbor = "T cell", n = 50)
+```
+
+### 7. Handling ROI border effects
+
+Origin cells near the ROI boundary have incomplete neighborhood spheres.
+`trim_origins_by_border` removes them before summarizing. This can also be
+triggered via `border_trim = TRUE` in `run_full_pipeline`:
+
+``` r
+roi_windows <- data.frame(
+  roi  = "roi_1",
+  xmin = 0, xmax = 2000,
+  ymin = 0, ymax = 2000
+)
+
+res <- run_full_pipeline(edges, mean_step = p1$step,
+                         border_trim  = TRUE,
+                         coords       = d1$locations,
+                         roi_windows  = roi_windows)
+```
+
+# hoodscanR / Statial Integration
+
+B2CViz objects can be converted to a `SpatialExperiment` for downstream
+analysis with [hoodscanR](https://bioconductor.org/packages/hoodscanR) or
+[Statial](https://bioconductor.org/packages/Statial).
+
+## Convert to SpatialExperiment
+
+``` r
+# annot_col is the metadata column containing cell type labels
+spe <- b2c_to_hood(b2c_1$post, annot_col = "seurat_clusters")
+```
+
+## Compute a co-localization correlation matrix
+
+`get_cor_hood` runs the complete hoodscanR pipeline (neighbor detection,
+scanning, merging, and metric calculation) and returns a cell-type
+co-localization correlation matrix:
+
+``` r
+cor_mat <- get_cor_hood(spe, k = 100)
+```
+
+## Extract the upper triangle
+
+`get_upper` converts the symmetric matrix to a tidy data frame of unique
+cell-type pairs:
+
+``` r
+upper_df <- get_upper(cor_mat)
+head(upper_df)
+#   celltype1 celltype2         r
+# 1    B cell    T cell  0.312
+# ...
+```
+
+## Focal neighborhood plot
+
+`plot_hood_focal` filters and harmonizes an edge table so that a chosen focal
+cell type always appears as `celltype1`, then plots a faceted summary:
+
+``` r
+plot_hood_focal(edge_df = upper_df,
+                focus   = "Tumor",
+                x       = "sample",
+                metric  = "r",
+                facet_y = "celltype2",
+                group   = "condition")
+```
+
+## Convert edge table back to a matrix
+
+Useful for custom heatmaps or export:
+
+``` r
+mat <- edge_table_to_matrix(upper_df,
+                            value_col     = "r",
+                            celltype1_col = "celltype1",
+                            celltype2_col = "celltype2")
 ```

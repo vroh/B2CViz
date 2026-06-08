@@ -1,10 +1,6 @@
-#' @import(png)
-#' @import(jpeg)
-#' @import(tiff)
-#' @import(dplyr)
-#' @import(Seurat)
-#' @import(sf)
-#' @import(RBioFormats)
+#' @importFrom png readPNG
+#' @importFrom jpeg readJPEG
+#' @importFrom tiff readTIFF
 NULL
 
 #' Load image file
@@ -38,11 +34,11 @@ load_img <- function(path) {
 space2b2c <- function(obj = NULL, slice = NULL) {
 
   # Populate the data slot
-  obj <- SetAssayData(
+  obj <- Seurat::SetAssayData(
     object = obj,
     assay = "Spatial.Polygons",
     layer = "data",
-    new.data = GetAssayData(obj[["Spatial.Polygons"]], layer = "counts")
+    new.data = Seurat::GetAssayData(obj[["Spatial.Polygons"]], layer = "counts")
   )
 
   # Create the dim reduction with spatial coordinates
@@ -77,17 +73,6 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice =
     if(is.null(scale.factor)) stop("Provide scale factor when using spaceranger data")
     pre <- post
   }
-  library(png)
-  library(jpeg)
-  library(tiff)
-  library(dplyr)
-  library(shiny)
-  library(imager)
-  library(Seurat)
-  library(ggplot2)
-  library(ggrepel)
-  library(ggnewscale)
-  library(tidyr)
   b2c <- list(pre = pre, post = post, path = path)
   b2c$img <- load_img(path)
   b2c$data <- "b2c"
@@ -153,10 +138,9 @@ scaledown_img <- function(b2c, grid.size = 10) {
 #' @return B2C (cropped) object
 #' @export
 upscale_roi <- function(b2c, path, series = 1, resolution = 1) {
-  if(!requireNamespace("RBioFormats", quietly = TRUE)) stop("RBioFormats is required but not installed.")
-  library(RBioFormats)
-  print(read.metadata(path))
-  roi <- read.image(
+  if(!requireNamespace("RBioFormats", quietly = TRUE)) stop("RBioFormats is required but not installed. Install from Bioconductor: BiocManager::install('RBioFormats')")
+  print(RBioFormats::read.metadata(path))
+  roi <- RBioFormats::read.image(
     path,
     series = series,
     resolution = resolution,

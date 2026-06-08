@@ -1,9 +1,6 @@
-#' @import(Seurat)
-#' @import(ggplot2)
-#' @import(ggrepel)
-#' @import(dplyr)
-#' @import(ggnewscale)
-#' @import(sf)
+#' @importFrom ggrepel geom_text_repel
+#' @importFrom FNN get.knn
+#' @importFrom scales rescale alpha
 NULL
 
 #' Plot spatial feature from a B2C object (requires scaled-down image)
@@ -28,7 +25,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
     stop("run scaledown_img() on b2c object first")
   }
 
-  df <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat))
+  df <- Seurat::FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat))
   colnames(df)[3] <- "feat"
 
   is_discrete <- is.factor(df$feat) || is.character(df$feat)
@@ -44,27 +41,27 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
   }
 
   p <-
-    ggplot(dfp, aes(y, x)) +
-    geom_raster(data = b2c$img_sd, aes(fill = color), alpha = he_alpha) +
-    geom_point(aes(x = SPATIAL_1, y = SPATIAL_2, col = feat),
+    ggplot2::ggplot(dfp, ggplot2::aes(y, x)) +
+    ggplot2::geom_raster(data = b2c$img_sd, ggplot2::aes(fill = color), alpha = he_alpha) +
+    ggplot2::geom_point(ggplot2::aes(x = SPATIAL_1, y = SPATIAL_2, col = feat),
                alpha = if(is_discrete) discrete.alpha else scales::rescale(dfp$feat),
                size = pt.size) +
-    coord_fixed(ratio = 1) +
-    scale_fill_identity() +
-    xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
-    ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
-    theme_void() +
-    ggtitle(feat) +
-    theme(plot.title = element_text(hjust = 0.5))
+    ggplot2::coord_fixed(ratio = 1) +
+    ggplot2::scale_fill_identity() +
+    ggplot2::xlim(min(df$SPATIAL_1), max(df$SPATIAL_1)) +
+    ggplot2::ylim(max(df$SPATIAL_2), min(df$SPATIAL_2)) +
+    ggplot2::theme_void() +
+    ggplot2::ggtitle(feat) +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
 
   if(is_discrete) {
     if(!is.null(col.discrete)) {
-      p <- p + scale_color_manual(name = feat, values = col.discrete, na.value = "transparent")
+      p <- p + ggplot2::scale_color_manual(name = feat, values = col.discrete, na.value = "transparent")
     } else {
-      p <- p + scale_color_discrete(name = feat, na.value = "transparent")
+      p <- p + ggplot2::scale_color_discrete(name = feat, na.value = "transparent")
     }
   } else {
-    p <- p + scale_color_continuous(name = feat, low = col.low, high = col.high)
+    p <- p + ggplot2::scale_color_continuous(name = feat, low = col.low, high = col.high)
   }
 
   # scalebar
@@ -74,9 +71,9 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
 
       # Calculate micron-to-plot conversion factor
       adjacent_spots <- meta %>%
-        filter(array_col == min(array_col)) %>% # Same column
-        arrange(array_row) %>%
-        slice(1:2) # First two rows in same column
+        dplyr::filter(array_col == min(array_col)) %>% # Same column
+        dplyr::arrange(array_row) %>%
+        dplyr::slice(1:2) # First two rows in same column
 
       if(nrow(adjacent_spots) < 2) stop("Insufficient adjacent spots for scale calculation, can't add scalebar, set scalebar_micron = FALSE")
 
@@ -84,7 +81,7 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
     }
 
     if(b2c$data == "spaceranger") {
-      y_distance <- as.numeric(names(which.max(table(round(unlist(sapply(obj@images[[paste0(b2c$slice, ".polygons")]]@boundaries$segmentation@sf.data$geometry[1:100], function(u) as.numeric(dist(u[[1]][,1])))), 2)))))
+      y_distance <- as.numeric(names(which.max(table(round(unlist(sapply(b2c$post@images[[paste0(b2c$slice, ".polygons")]]@boundaries$segmentation@sf.data$geometry[1:100], function(u) as.numeric(dist(u[[1]][,1])))), 2)))))
     }
 
     microns_per_bin <- 2 # known bin spacing
@@ -102,16 +99,16 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
     # Add scalebar to plot
     p <-
       p +
-      annotate("rect",
+      ggplot2::annotate("rect",
                xmin = x_pos, xmax = x_pos + scalebar_adj,
                ymin = y_pos, ymax = y_pos + diff(y_range) * 0.01,
                fill = "black",
                color = NA
       ) +
-      annotate("text",
+      ggplot2::annotate("text",
                x = x_pos + scalebar_adj / 2,
                y = y_pos - diff(y_range) * 0.015, # Adjusted for better visibility
-               label = paste(scalebar, "μm"),
+               label = paste(scalebar, "\u03bcm"),
                size = 3,
                color = "black"
       )
@@ -127,12 +124,12 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
 #' @param label.id Label ID
 #' @return A data frame with polygon data
 #' @export
-# extract polygons
 extract_polygons <- function(obj = NULL, slice = NULL, label.id = "labels_he_expanded") {
 
+  if(!requireNamespace("sf", quietly = TRUE)) stop("sf is required but not installed.")
   # 1. Extract coordinates of all polygon vertices
   seg <- obj@images[[paste0(slice, ".polygons")]]$segmentation@sf.data
-  coords <- st_coordinates(seg)
+  coords <- sf::st_coordinates(seg)
 
   # 2. Combine with metadata
   df <- data.frame(
@@ -223,17 +220,20 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     col.discrete <- rep(list(col.discrete), length(feat))
   }
 
+  # ensure downstream compatibility with get_dist()
+  if (!plot) translate = F
+
   # fetch data
-  df_post <- FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, unlist(filter.feat)))
+  df_post <- Seurat::FetchData(b2c$post, vars = c("SPATIAL_1", "SPATIAL_2", feat, unlist(filter.feat)))
   df_post[label.id] <- row.names(df_post)
 
   feat_is_discrete <- sapply(feat, function(f) is.factor(df_post[[f]]) || is.character(df_post[[f]]))
 
   if("hulls" %in% plot.type) {
     if(b2c$data == "b2c") {
-      df_pre <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
-        group_by(across(label.id)) %>%
-        slice(chull(SPATIAL_1, SPATIAL_2))
+      df_pre <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
+        dplyr::group_by(dplyr::across(label.id)) %>%
+        dplyr::slice(chull(SPATIAL_1, SPATIAL_2))
     }
     if(b2c$data == "spaceranger") {
       df_pre <- extract_polygons(b2c$post, b2c$slice)
@@ -268,24 +268,33 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
     }
   }
 
+  # Compute step_2um for scalebar and/or !plot export
+  # Only computable when df_pre is available (hulls mode)
+  step_2um <- NULL
+  if ((scalebar != FALSE || !plot) && exists("df_pre") && !is.null(df_pre)) {
+    xy <- as.matrix(df_pre[, c("SPATIAL_1", "SPATIAL_2")])
+    nn <- FNN::get.knn(xy, k = 2)
+    step_2um <- median(nn$nn.dist[, 1], na.rm = TRUE)
+  }
+
   # plot H&E
   p <-
-    ggplot(df_post) +
-    geom_raster(data = b2c$img, aes(x = y, y = x, fill = color), alpha = he_alpha) +
-    scale_fill_identity() +
+    ggplot2::ggplot(df_post) +
+    ggplot2::geom_raster(data = b2c$img, ggplot2::aes(x = y, y = x, fill = color), alpha = he_alpha) +
+    ggplot2::scale_fill_identity() +
     ggnewscale::new_scale_fill()
 
   # show bins
   if(show.bins == "yes" | show.bins == "all") {
-    bins <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", feat))
+    bins <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", feat))
     colnames(bins) <- paste0(colnames(bins), "_bins")
     bins$SPATIAL_1 <- bins$SPATIAL_1 - ifelse(translate, translate_sp1, 0)
     bins$SPATIAL_2 <- bins$SPATIAL_2 - ifelse(translate, translate_sp2, 0)
     for(i in 1:length(feat)) {
       p <-
         p +
-        geom_point(data = bins, aes(x = SPATIAL_1, y = SPATIAL_2, col = !!sym(paste0(feat[i], "_bins"))), size = 0.3) +
-        scale_color_gradient2(mid = ifelse(show.bins == "all", alpha("white", alpha = 0.65/length(feat)), alpha(col.mid[i], alpha = 0)),
+        ggplot2::geom_point(data = bins, ggplot2::aes(x = SPATIAL_1, y = SPATIAL_2, col = !!rlang::sym(paste0(feat[i], "_bins"))), size = 0.3) +
+        ggplot2::scale_color_gradient2(mid = ifelse(show.bins == "all", scales::alpha("white", alpha = 0.65/length(feat)), scales::alpha(col.mid[i], alpha = 0)),
                               high = col.high[i],
                               na.value = "transparent") +
         ggnewscale::new_scale_color()
@@ -332,15 +341,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       if(feat_is_discrete[i]) {
         p <-
           p +
-          geom_point(data = data.points,
-                     aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
+          ggplot2::geom_point(data = data.points,
+                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
                      alpha = discrete.alpha[i],
                      shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3)
 
         if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
         } else {
-          p <- p + scale_color_discrete(name = feat[i], na.value = "transparent")
+          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
         }
 
         p <- p + ggnewscale::new_scale_color()
@@ -348,12 +357,12 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       } else {
         p <-
           p +
-          geom_point(data = data.points,
-                     aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
+          ggplot2::geom_point(data = data.points,
+                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
                      shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-          scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
-                                mid = alpha(col.mid[i], alpha = alpha.mid[i]),
-                                high = alpha(col.high[i], alpha = alpha.high[i]),
+          ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                                mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                                high = scales::alpha(col.high[i], alpha = alpha.high[i]),
                                 midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
                                 na.value = "transparent",
                                 limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
@@ -411,14 +420,14 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       if(feat_is_discrete[i]) {
         p <-
           p +
-          geom_polygon(data = data.hulls,
-                       aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
+          ggplot2::geom_polygon(data = data.hulls,
+                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
                        alpha = discrete.alpha[i], color = NA)
 
         if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+          p <- p + ggplot2::scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
         } else {
-          p <- p + scale_fill_discrete(name = feat[i], na.value = "transparent")
+          p <- p + ggplot2::scale_fill_discrete(name = feat[i], na.value = "transparent")
         }
 
         p <- p + ggnewscale::new_scale_fill()
@@ -426,11 +435,11 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       } else {
         p <-
           p +
-          geom_polygon(data = data.hulls,
-                       aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
-          scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
-                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
-                               high = alpha(col.high[i], alpha = alpha.high[i]),
+          ggplot2::geom_polygon(data = data.hulls,
+                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
+          ggplot2::scale_fill_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                               mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                               high = scales::alpha(col.high[i], alpha = alpha.high[i]),
                                midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
                                na.value = "transparent",
                                limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
@@ -488,14 +497,14 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       if(feat_is_discrete[i]) {
         p <-
           p +
-          geom_polygon(data = data.hulls,
-                       aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
+          ggplot2::geom_polygon(data = data.hulls,
+                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
                        alpha = discrete.alpha[i], color = NA, show.legend = F)
 
         if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+          p <- p + ggplot2::scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
         } else {
-          p <- p + scale_fill_discrete(name = feat[i], na.value = "transparent")
+          p <- p + ggplot2::scale_fill_discrete(name = feat[i], na.value = "transparent")
         }
 
         p <- p + ggnewscale::new_scale_fill()
@@ -503,11 +512,11 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       } else {
         p <-
           p +
-          geom_polygon(data = data.hulls,
-                       aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
-          scale_fill_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
-                               mid = alpha(col.mid[i], alpha = alpha.mid[i]),
-                               high = alpha(col.high[i], alpha = alpha.high[i]),
+          ggplot2::geom_polygon(data = data.hulls,
+                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
+          ggplot2::scale_fill_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                               mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                               high = scales::alpha(col.high[i], alpha = alpha.high[i]),
                                midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
                                na.value = "transparent",
                                limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
@@ -518,15 +527,15 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       if(feat_is_discrete[i]) {
         p <-
           p +
-          geom_point(data = data.points,
-                     aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
+          ggplot2::geom_point(data = data.points,
+                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
                      alpha = discrete.alpha[i],
                      shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3)
 
         if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
         } else {
-          p <- p + scale_color_discrete(name = feat[i], na.value = "transparent")
+          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
         }
 
         p <- p + ggnewscale::new_scale_color()
@@ -534,11 +543,11 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
       } else {
         p <-
           p +
-          geom_point(data = data.points,
-                     aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-          scale_color_gradient2(low = alpha(col.low[i], alpha = alpha.low[i]),
-                                mid = alpha(col.mid[i], alpha = alpha.mid[i]),
-                                high = alpha(col.high[i], alpha = alpha.high[i]),
+          ggplot2::geom_point(data = data.points,
+                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+          ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                                mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                                high = scales::alpha(col.high[i], alpha = alpha.high[i]),
                                 midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
                                 na.value = "transparent",
                                 limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
@@ -556,60 +565,52 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   if(show.labels) {
     p <-
       p +
-      ggrepel::geom_text_repel(data = data.points, aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
+      ggrepel::geom_text_repel(data = data.points, ggplot2::aes_string(x = "SPATIAL_1", y= "SPATIAL_2", label = label.id), color = "black", min.segment.length = 0, max.overlaps = Inf)
   }
 
   # outline hulls
   if(!is.null(outline.hulls)) {
     p <-
       p +
-      geom_polygon(data = dplyr::filter(df, !!sym(label.id) %in% outline.hulls),
-                   aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id), fill = NA, color = "black")
+      ggplot2::geom_polygon(data = dplyr::filter(df, !!rlang::sym(label.id) %in% outline.hulls),
+                   ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id), fill = NA, color = "black")
   }
 
-  # plot scalebar
-  if(scalebar) {
-    # Calculate scalebar position (bottom-left corner)
-    x_range <- range(df_post$SPATIAL_1)
-    y_range <- range(df_post$SPATIAL_2)
-    x_pos <- x_range[1]# + 0.02 * diff(x_range)  # 2% from left edge
-    y_pos <- y_range[2]# - 0.03 * diff(y_range)  # 3% from visual bottom (after flip)
-
-    # Add scalebar to plot
-    p <-
-      p +
-      annotate("rect",
-               xmin = x_pos, xmax = x_pos + scalebar / 2,
+  # plot scalebar using FNN-based approach
+  if(scalebar != FALSE && !is.null(step_2um)) {
+    bar_units <- scalebar * step_2um / 2
+    x_range <- range(df_post$SPATIAL_1, na.rm = TRUE)
+    y_range <- range(df_post$SPATIAL_2, na.rm = TRUE)
+    x_pos <- x_range[1]
+    y_pos <- y_range[2]
+    p <- p +
+      ggplot2::annotate("rect", xmin = x_pos, xmax = x_pos + bar_units,
                ymin = y_pos, ymax = y_pos - scalebar.width,
-               fill = "black",
-               color = NA
-      ) +
-      annotate("text",
-               x = x_pos + scalebar / 4,
-               y = y_pos - scalebar.width * 3, # Adjusted for better visibility
-               label = paste(scalebar, "μm"),
-               size = scalebar/100,
-               color = "black"
-      )
+               fill = "black", color = NA) +
+      ggplot2::annotate("text", x = x_pos + bar_units / 2,
+               y = y_pos - scalebar.width * 3,
+               label = paste0(scalebar, " \u03bcm"),
+               size = scalebar.width / 7.5, color = "black")
   }
 
   # wrap plot
   p <-
     p +
-    coord_fixed(ratio = 1) +
-    theme_void() +
-    scale_x_continuous(expand = c(0, 5)) +
-    scale_y_reverse(expand = c(0, 5)) +
-    ggtitle(title) +
-    theme(plot.title = element_text(hjust = 0.5),
-          panel.border = element_rect(fill = NA),
-          plot.margin = margin(5, 5, 5, 5))
+    ggplot2::coord_fixed(ratio = 1) +
+    ggplot2::theme_void() +
+    ggplot2::scale_x_continuous(expand = c(0, 5)) +
+    ggplot2::scale_y_reverse(expand = c(0, 5)) +
+    ggplot2::ggtitle(title) +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+          panel.border = ggplot2::element_rect(fill = NA),
+          plot.margin = ggplot2::margin(5, 5, 5, 5))
 
   # display plot or return object
   if(plot) {
     print(p)
   } else {
-    list(plot = p, cells = data.points, threshold = min.visible)
+    list(plot = p, cells = data.points, threshold = min.visible,
+         step = if (!is.null(step_2um)) step_2um / 2 else NULL)
   }
 }
 
@@ -625,44 +626,44 @@ plot_segmentation <- function(b2c, label.id = "labels_he_expanded", he_alpha = 1
 
   # fetch data
   if(b2c$data == "b2c") {
-    df <- FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
-      group_by(across(label.id)) %>%
-      slice(chull(SPATIAL_1, SPATIAL_2))
+    df <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
+      dplyr::group_by(dplyr::across(label.id)) %>%
+      dplyr::slice(chull(SPATIAL_1, SPATIAL_2))
   }
   if(b2c$data == "spaceranger") {
     df <- extract_polygons(b2c$post, b2c$slice)
   }
   p <-
-    ggplot(df) +
-    geom_raster(data = b2c$img, aes(x = y, y = x, fill = color), alpha = he_alpha) +
-    geom_polygon(aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = color, linewidth = linewidth) +
-    scale_fill_identity() +
+    ggplot2::ggplot(df) +
+    ggplot2::geom_raster(data = b2c$img, ggplot2::aes(x = y, y = x, fill = color), alpha = he_alpha) +
+    ggplot2::geom_polygon(ggplot2::aes_string(x = "SPATIAL_1", y= "SPATIAL_2", group = label.id), fill = NA, color = color, linewidth = linewidth) +
+    ggplot2::scale_fill_identity() +
     ggnewscale::new_scale_fill() +
-    coord_fixed(ratio = 1) +
-    theme_void() +
-    scale_x_continuous(expand = c(0, 5)) +
-    scale_y_reverse(expand = c(0, 5)) +
-    theme(plot.title = element_text(hjust = 0.5),
-          panel.border = element_rect(fill = NA),
-          plot.margin = margin(5, 5, 5, 5))
+    ggplot2::coord_fixed(ratio = 1) +
+    ggplot2::theme_void() +
+    ggplot2::scale_x_continuous(expand = c(0, 5)) +
+    ggplot2::scale_y_reverse(expand = c(0, 5)) +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+          panel.border = ggplot2::element_rect(fill = NA),
+          plot.margin = ggplot2::margin(5, 5, 5, 5))
   p
 }
 
 #' Plot cell-cell distances distribution from a ROI plot (previously quantified with get_dist)
 #'
-#' @param df Data frame of distances (output from get_dist)
+#' @param df Data frame of distances (output from get_dist, i.e. the \code{distances} element)
 #' @param binwidth Binwidth of the histograms
 #' @export
 plot_dist <- function(df, binwidth = 5) {
   print(
-    ggplot(df, aes(x = distance, fill = neighbor_marker)) +
-      geom_histogram(binwidth = binwidth, color = NA, alpha = 0.3, position = "identity") +
-      stat_bin(binwidth = binwidth, aes(y = after_stat(count), group = neighbor_marker, color = neighbor_marker), geom = "smooth", se = FALSE, linewidth = 0.5, position = "identity") +
-      geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) %>% dplyr::summarise(meandist = mean(distance)), aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
-      facet_grid(origin_marker ~ ., scales = "free_y") +
-      xlab("distance (microns)") +
-      theme_light() +
-      theme(strip.background = element_blank(),
-            strip.text = element_text(color = "black"))
+    ggplot2::ggplot(df, ggplot2::aes(x = distance, fill = neighbor_marker)) +
+      ggplot2::geom_histogram(binwidth = binwidth, color = NA, alpha = 0.3, position = "identity") +
+      ggplot2::stat_bin(binwidth = binwidth, ggplot2::aes(y = ggplot2::after_stat(count), group = neighbor_marker, color = neighbor_marker), geom = "smooth", se = FALSE, linewidth = 0.5, position = "identity") +
+      ggplot2::geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) %>% dplyr::summarise(meandist = mean(distance)), ggplot2::aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
+      ggplot2::facet_grid(origin_marker ~ ., scales = "free_y") +
+      ggplot2::xlab("distance (microns)") +
+      ggplot2::theme_light() +
+      ggplot2::theme(strip.background = ggplot2::element_blank(),
+            strip.text = ggplot2::element_text(color = "black"))
   )
 }

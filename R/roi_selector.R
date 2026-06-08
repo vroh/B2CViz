@@ -1,6 +1,4 @@
-#' @import(shiny)
-#' @import(imager)
-#' @import(dplyr)
+#' @importFrom httpuv randomPort
 NULL
 
 #' ROI Selector
@@ -21,7 +19,6 @@ roi_selector <- function(path, b2c = NULL) {
   drawing_mode <- reactiveVal(FALSE) # Are we currently drawing a polygon?
   current_polygon_points <- reactiveVal(list()) # Points added to the current polygon (original coords)
   selected_rectangle_orig <- reactiveVal(NULL) # Stores the *original* image coords of the brushed rectangle
-  # selected_rectangle_disp <- reactiveVal(NULL) # Store display coords if needed elsewhere
 
   # --- Add caching for the ROI image snippet ---
   cached_roi_img <- reactiveVal(NULL)
@@ -31,22 +28,22 @@ roi_selector <- function(path, b2c = NULL) {
     stop("Image file not found at path: ", path)
   }
   original_img <- tryCatch(
-    load.image(path),
+    imager::load.image(path),
     error = function(e) {
       stop("Failed to load image. Error: ", e$message)
     }
   )
 
   max_display_size <- 800
-  scale_factor <- min(max_display_size / width(original_img),
-                      max_display_size / height(original_img),
+  scale_factor <- min(max_display_size / imager::width(original_img),
+                      max_display_size / imager::height(original_img),
                       1)
 
-  display_img <- imresize(original_img, scale = scale_factor)
-  x_scale <- width(original_img) / width(display_img)
-  y_scale <- height(original_img) / height(display_img)
+  display_img <- imager::imresize(original_img, scale = scale_factor)
+  x_scale <- imager::width(original_img) / imager::width(display_img)
+  y_scale <- imager::height(original_img) / imager::height(display_img)
 
-  # --- UI Definition (Identical to previous version) ---
+  # --- UI Definition ---
   ui <- fluidPage(
     titlePanel("ROI Selector"),
     sidebarLayout(
@@ -79,7 +76,6 @@ roi_selector <- function(path, b2c = NULL) {
           ),
           column(6,
                  h4("Zoomed Region / Polygon Drawing"),
-                 # Make height slightly larger maybe? or keep auto
                  plotOutput("roi_plot", height = "auto",
                             click = "roi_plot_click")
           )
@@ -104,8 +100,6 @@ roi_selector <- function(path, b2c = NULL) {
 
     # -- Main Plot Rendering --
     output$main_plot <- renderPlot({
-      # Use redraw_trigger() OR selected_rectangle_orig() change to redraw
-      # Dependency on roi_coords_list() is implicit via redraw_trigger increment on add
       redraw_trigger()
 
       par(mar = c(0, 0, 0, 0))
@@ -134,41 +128,39 @@ roi_selector <- function(path, b2c = NULL) {
         }
       }
 
-      # Use selected_rectangle_disp() if available for consistency
-      current_brush <- input$plot_brush # Read reactive once
+      current_brush <- input$plot_brush
       if (!is.null(current_brush)) {
         rect(current_brush$xmin, current_brush$ymin,
              current_brush$xmax, current_brush$ymax,
              border = "red", lwd = 2)
       }
     }, height = function() {
-      max(400, min(max_display_size, round(height(display_img) * (session$clientData$output_main_plot_width / width(display_img)))))
+      max(400, min(max_display_size, round(imager::height(display_img) * (session$clientData$output_main_plot_width / imager::width(display_img)))))
     })
 
 
     # -- Observe Brush Selection -> Update Cache --
     observeEvent(input$plot_brush, {
-      brush <- input$plot_brush # Read reactive once
+      brush <- input$plot_brush
       if (!is.null(brush)) {
         # Calculate original coordinates (ensure validity)
         orig_xmin <- max(1, round(brush$xmin * x_scale))
-        orig_xmax <- min(width(original_img), round(brush$xmax * x_scale))
+        orig_xmax <- min(imager::width(original_img), round(brush$xmax * x_scale))
         orig_ymin <- max(1, round(brush$ymin * y_scale))
-        orig_ymax <- min(height(original_img), round(brush$ymax * y_scale))
+        orig_ymax <- min(imager::height(original_img), round(brush$ymax * y_scale))
 
         if (orig_xmax <= orig_xmin) orig_xmax <- orig_xmin + 1
         if (orig_ymax <= orig_ymin) orig_ymax <- orig_ymin + 1
-        orig_xmax <- min(width(original_img), orig_xmax)
-        orig_ymax <- min(height(original_img), orig_ymax)
+        orig_xmax <- min(imager::width(original_img), orig_xmax)
+        orig_ymax <- min(imager::height(original_img), orig_ymax)
 
         sel_orig <- list(xmin = orig_xmin, xmax = orig_xmax, ymin = orig_ymin, ymax = orig_ymax)
-        selected_rectangle_orig(sel_orig) # Store original coords
+        selected_rectangle_orig(sel_orig)
 
-        # --- Cache the image subset ---
-        # This is the key change for caching
+        # Cache the image subset
         if (sel_orig$xmax > sel_orig$xmin && sel_orig$ymax > sel_orig$ymin) {
           roi_subset <- tryCatch(
-            imsub(original_img,
+            imager::imsub(original_img,
                   x %inr% c(sel_orig$xmin, sel_orig$xmax),
                   y %inr% c(sel_orig$ymin, sel_orig$ymax)),
             error = function(e) {
@@ -176,12 +168,11 @@ roi_selector <- function(path, b2c = NULL) {
               return(NULL)
             }
           )
-          cached_roi_img(roi_subset) # Update the cache
+          cached_roi_img(roi_subset)
         } else {
-          cached_roi_img(NULL) # Invalid selection dimensions
+          cached_roi_img(NULL)
           showNotification("Selected region is too small.", type = "warning")
         }
-        # --- End caching update ---
 
         # Reset polygon state for the new selection
         drawing_mode(FALSE)
@@ -194,7 +185,7 @@ roi_selector <- function(path, b2c = NULL) {
       } else {
         # Brush cleared
         selected_rectangle_orig(NULL)
-        cached_roi_img(NULL) # Clear cache
+        cached_roi_img(NULL)
         drawing_mode(FALSE)
         current_polygon_points(list())
         updateActionButton(session, "clear_poly", disabled = TRUE)
@@ -202,44 +193,34 @@ roi_selector <- function(path, b2c = NULL) {
         updateActionButton(session, "add_rect", disabled = TRUE)
         updateActionButton(session, "start_poly", disabled = TRUE)
       }
-      # Trigger roi_plot redraw explicitly when brush changes (uses cache)
-      # No need for redraw_trigger here, plot depends on cached_roi_img & selected_rectangle_orig
-      # redraw_trigger(redraw_trigger() + 1) # Not strictly needed for cache update
-    }, ignoreNULL = FALSE) # Trigger even when brush becomes NULL
+    }, ignoreNULL = FALSE)
 
 
     # -- ROI Plot Rendering (Uses Cache) --
     output$roi_plot <- renderPlot({
-      # Depend on redraw_trigger for polygon updates, and cached_roi_img for image data
       redraw_trigger()
-      roi <- cached_roi_img() # Get from cache
-      rect_orig <- selected_rectangle_orig() # Get original coords for offsets
+      roi <- cached_roi_img()
+      rect_orig <- selected_rectangle_orig()
 
-      if (!is.null(roi) && !is.null(rect_orig) && width(roi) > 0 && height(roi) > 0) {
+      if (!is.null(roi) && !is.null(rect_orig) && imager::width(roi) > 0 && imager::height(roi) > 0) {
         par(mar = c(0, 0, 0, 0))
-        # --- Plot the cached image ---
         plot(roi, axes = FALSE, interp = FALSE)
 
-        # --- Overlay polygon drawing (same logic as before) ---
         poly_points <- current_polygon_points()
         if (length(poly_points) > 0) {
-          # Convert original polygon coords to ROI plot coords (relative to subset)
           roi_plot_points <- lapply(poly_points, function(p) {
             list(x = p$x - rect_orig$xmin + 1,
                  y = p$y - rect_orig$ymin + 1)
           })
 
-          # Draw points
           points(sapply(roi_plot_points, `[[`, "x"), sapply(roi_plot_points, `[[`, "y"),
                  col = "red", pch = 19, cex = 1.5)
 
-          # Draw lines connecting points
           if (length(roi_plot_points) > 1) {
             lines(sapply(roi_plot_points, `[[`, "x"), sapply(roi_plot_points, `[[`, "y"),
                   col = "red", lwd = 2)
           }
 
-          # Indicate closure possibility / status
           if (drawing_mode() && length(roi_plot_points) >= 3) {
             first_pt <- roi_plot_points[[1]]
             points(first_pt$x, first_pt$y, col = "orange", pch = 1, cex = 3, lwd=2)
@@ -255,49 +236,40 @@ roi_selector <- function(path, b2c = NULL) {
         } else if (drawing_mode()) {
           title(main = "Click points to start drawing polygon.", line = -1.1, cex.main = 1.5, col.main = "black")
         }
-        # --- End polygon overlay ---
       } else {
-        # No selection or invalid cache
         plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
         text(1, 1, "Select a region in the main plot")
       }
     }, height = function(){
-      roi <- cached_roi_img() # Check cache for dimensions
+      roi <- cached_roi_img()
       if (!is.null(roi)){
-        # Calculate height based on cached roi aspect ratio
-        max(200, min(400, round(height(roi) * (session$clientData$output_roi_plot_width / width(roi)))))
+        max(200, min(400, round(imager::height(roi) * (session$clientData$output_roi_plot_width / imager::width(roi)))))
       } else {
-        400 # Default height
+        400
       }
     })
 
 
     # -- Handle Clicks in ROI Plot for Polygon Drawing --
     observeEvent(input$roi_plot_click, {
-      # Important: Use isolate() to read values that should not trigger this observer
-      # Only trigger based on the click event itself.
       if (isolate(drawing_mode()) && !is.null(input$roi_plot_click)) {
 
         click <- input$roi_plot_click
-        rect_orig <- isolate(selected_rectangle_orig()) # Read without dependency
+        rect_orig <- isolate(selected_rectangle_orig())
 
-        if(is.null(rect_orig)) return() # Should not happen if drawing_mode is TRUE, but safe check
+        if(is.null(rect_orig)) return()
 
-        # Convert click coordinates (plot data coords) to original image coordinates.
-        # Assuming plot data coords map directly to original subset indices.
         orig_x <- round(rect_orig$xmin + click$x - 1)
         orig_y <- round(rect_orig$ymin + click$y - 1)
 
-        # Clamp coordinates within the original image bounds (optional but safer)
-        orig_x <- max(1, min(width(isolate(original_img)), orig_x))
-        orig_y <- max(1, min(height(isolate(original_img)), orig_y))
+        orig_x <- max(1, min(imager::width(isolate(original_img)), orig_x))
+        orig_y <- max(1, min(imager::height(isolate(original_img)), orig_y))
 
         new_point <- list(x = orig_x, y = orig_y)
 
-        # Use functional update for safer modification of reactiveVal list
-        current_points <- current_polygon_points() # Get current list
+        current_points <- current_polygon_points()
 
-        close_threshold_orig <- 10 # Distance threshold in original coordinates
+        close_threshold_orig <- 10
 
         closed_polygon <- FALSE
         if (length(current_points) >= 3) {
@@ -305,7 +277,7 @@ roi_selector <- function(path, b2c = NULL) {
           distance <- sqrt((new_point$x - first_point$x)^2 + (new_point$y - first_point$y)^2)
 
           if (distance < close_threshold_orig) {
-            drawing_mode(FALSE) # Stop drawing mode
+            drawing_mode(FALSE)
             closed_polygon <- TRUE
             showNotification("Polygon closed. Click 'Add Polygon ROI'.", type = "message")
             updateActionButton(session, "add_poly", disabled = FALSE)
@@ -313,39 +285,35 @@ roi_selector <- function(path, b2c = NULL) {
           }
         }
 
-        # Add the point ONLY if not closing the polygon
         if (!closed_polygon) {
           current_polygon_points(c(current_points, list(new_point)))
         }
 
-        # --- Trigger redraw for polygon update ---
-        # This is essential for seeing points/lines appear
         redraw_trigger(redraw_trigger() + 1)
       }
     })
 
-    # -- Button Actions (Mostly Unchanged, ensure redraw_trigger on Add/Clear) --
+    # -- Button Actions --
 
     # Add Rectangle ROI
     observeEvent(input$add_rect, {
       rect_orig <- selected_rectangle_orig()
       if (!is.null(rect_orig)) {
         new_roi <- list(type = "rectangle", coords = lapply(rect_orig, function(x) x / b2c$scale.factor))
-        roi_coords_list(c(roi_coords_list(), list(new_roi))) # Update list
+        roi_coords_list(c(roi_coords_list(), list(new_roi)))
         showNotification("Rectangle ROI added.", type = "message")
 
-        # Reset state
         selected_rectangle_orig(NULL)
-        cached_roi_img(NULL) # Clear cache
+        cached_roi_img(NULL)
         drawing_mode(FALSE)
         current_polygon_points(list())
         updateActionButton(session, "clear_poly", disabled = TRUE)
         updateActionButton(session, "add_poly", disabled = TRUE)
         updateActionButton(session, "add_rect", disabled = TRUE)
         updateActionButton(session, "start_poly", disabled = TRUE)
-        session$resetBrush("plot_brush") # Attempt to clear brush visually
+        session$resetBrush("plot_brush")
 
-        redraw_trigger(redraw_trigger() + 1) # Redraw main plot
+        redraw_trigger(redraw_trigger() + 1)
       } else {
         showNotification("Please select a rectangular region first.", type = "warning")
       }
@@ -353,15 +321,14 @@ roi_selector <- function(path, b2c = NULL) {
 
     # Start Polygon Drawing
     observeEvent(input$start_poly, {
-      # Check if a region is selected and cached
       if (!is.null(selected_rectangle_orig()) && !is.null(cached_roi_img())) {
         drawing_mode(TRUE)
-        current_polygon_points(list()) # Reset points
+        current_polygon_points(list())
         updateActionButton(session, "clear_poly", disabled = FALSE)
         updateActionButton(session, "add_poly", disabled = TRUE)
         updateActionButton(session, "add_rect", disabled = TRUE)
         showNotification("Polygon drawing started. Click points in the zoom view.", type = "message")
-        redraw_trigger(redraw_trigger() + 1) # Update roi_plot title/state
+        redraw_trigger(redraw_trigger() + 1)
       } else {
         showNotification("Please select a valid rectangular region first.", type = "warning")
       }
@@ -373,33 +340,30 @@ roi_selector <- function(path, b2c = NULL) {
       current_polygon_points(list())
       updateActionButton(session, "clear_poly", disabled = TRUE)
       updateActionButton(session, "add_poly", disabled = TRUE)
-      updateActionButton(session, "add_rect", disabled = is.null(selected_rectangle_orig())) # Re-enable if selection exists
+      updateActionButton(session, "add_rect", disabled = is.null(selected_rectangle_orig()))
       showNotification("Polygon drawing cleared.", type = "message")
-      redraw_trigger(redraw_trigger() + 1) # Update roi_plot display
+      redraw_trigger(redraw_trigger() + 1)
     })
 
     # Add Polygon ROI
     observeEvent(input$add_poly, {
-      # Use isolate to prevent dependency loops if poly_points changes elsewhere
       poly_points <- isolate(current_polygon_points())
-      # Check if drawing is finished and polygon is valid
       if (!isolate(drawing_mode()) && length(poly_points) >= 3) {
         new_roi <- list(type = "polygon", points = lapply(poly_points, function(pt) {lapply(pt, function(v) v / b2c$scale.factor)}))
-        roi_coords_list(c(roi_coords_list(), list(new_roi))) # Update list
+        roi_coords_list(c(roi_coords_list(), list(new_roi)))
         showNotification("Polygon ROI added.", type = "message")
 
-        # Reset state
         selected_rectangle_orig(NULL)
-        cached_roi_img(NULL) # Clear cache
+        cached_roi_img(NULL)
         drawing_mode(FALSE)
         current_polygon_points(list())
         updateActionButton(session, "clear_poly", disabled = TRUE)
         updateActionButton(session, "add_poly", disabled = TRUE)
         updateActionButton(session, "add_rect", disabled = TRUE)
         updateActionButton(session, "start_poly", disabled = TRUE)
-        session$resetBrush("plot_brush") # Attempt to clear brush
+        session$resetBrush("plot_brush")
 
-        redraw_trigger(redraw_trigger() + 1) # Redraw main plot
+        redraw_trigger(redraw_trigger() + 1)
 
       } else if (isolate(drawing_mode())) {
         showNotification("Please finish drawing the polygon (click near start point).", type = "warning")
@@ -408,10 +372,9 @@ roi_selector <- function(path, b2c = NULL) {
       }
     })
 
-    # -- ROI List Output (Unchanged) --
+    # -- ROI List Output --
     output$roi_list <- renderPrint({
       rois <- roi_coords_list()
-      # ... (same as before) ...
       if (length(rois) == 0) {
         cat("No ROIs selected yet.\n")
       } else {
@@ -428,12 +391,12 @@ roi_selector <- function(path, b2c = NULL) {
       }
     })
 
-    # -- Finish Button (Unchanged) --
+    # -- Finish Button --
     observeEvent(input$finish, {
       stopApp(roi_coords_list())
     })
 
-    # -- Initial Button States (Unchanged) --
+    # -- Initial Button States --
     observe({
       updateActionButton(session, "add_rect", disabled = TRUE)
       updateActionButton(session, "start_poly", disabled = TRUE)
@@ -443,7 +406,7 @@ roi_selector <- function(path, b2c = NULL) {
 
   } # End server function
 
-  # --- Run the App (Unchanged) ---
+  # --- Run the App ---
   app_port <- httpuv::randomPort()
   print(paste("Starting Shiny app on port", app_port))
   result <- runApp(list(ui = ui, server = server), port = app_port, launch.browser = getOption("shiny.launch.browser", interactive()))
@@ -476,7 +439,6 @@ point_in_polygon <- function(point_x, point_y, polygon_df) {
     p2y <- polygon_y[ifelse(i == n, 1, i + 1)]
 
     # Check if the point is on the same horizontal line as a segment
-    # This handles horizontal edges correctly in the ray casting algorithm
     if (point_y == p1y && point_y == p2y && point_x >= min(p1x, p2x) && point_x <= max(p1x, p2x)) {
       return(TRUE) # Point is on a horizontal boundary segment
     }
@@ -506,7 +468,7 @@ point_in_polygon <- function(point_x, point_y, polygon_df) {
 crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
   # --- 1. Fetch initial data ---
   coord_type <- b2c$coord[[roi]]$type
-  cells_data <- FetchData(b2c$post, c("SPATIAL_1", "SPATIAL_2"))
+  cells_data <- Seurat::FetchData(b2c$post, c("SPATIAL_1", "SPATIAL_2"))
   # Ensure we have rownames to link back to the original object
   cells_data$original_rownames <- rownames(cells_data)
 
@@ -518,14 +480,14 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
     ymax <- b2c$coord[[roi]]$coords$ymax
 
     # Filter cells based on rectangle
-    cells_to_keep_df <- filter(cells_data,
+    cells_to_keep_df <- dplyr::filter(cells_data,
                                SPATIAL_1 >= xmin,
                                SPATIAL_1 <= xmax,
                                SPATIAL_2 >= ymin,
                                SPATIAL_2 <= ymax)
 
     # Filter image data based on rectangle
-    img_to_keep <- filter(b2c$img,
+    img_to_keep <- dplyr::filter(b2c$img,
                           y >= xmin,
                           y <= xmax,
                           x >= ymin,
@@ -546,18 +508,13 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
     ymax_poly <- max(points_df$y)
 
     # --- Step 1: Broad Phase - Filter by Bounding Box ---
-    # Pre-filter cells using the polygon's bounding box
-    # Note: Using the variable names as in FetchData (SPATIAL_1, SPATIAL_2)
-    pre_filtered_cells <- filter(cells_data,
+    pre_filtered_cells <- dplyr::filter(cells_data,
                                  SPATIAL_1 >= xmin_poly,
                                  SPATIAL_1 <= xmax_poly,
                                  SPATIAL_2 >= ymin_poly,
                                  SPATIAL_2 <= ymax_poly)
 
-    # Pre-filter image data using the polygon's bounding box
-    # Note: Using the variable names as in b2c$img (y, x)
-    # Assuming b2c$img$y corresponds to SPATIAL_1 and b2c$img$x to SPATIAL_2
-    pre_filtered_img <- filter(b2c$img,
+    pre_filtered_img <- dplyr::filter(b2c$img,
                                y >= xmin_poly,
                                y <= xmax_poly,
                                x >= ymin_poly,
@@ -565,7 +522,6 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
 
     # --- Step 2: Narrow Phase - Apply Point-in-Polygon Test ---
     if (nrow(pre_filtered_cells) > 0) {
-      # Apply the precise polygon test only to the pre-filtered cells
       inside_flags_cells <- apply(pre_filtered_cells, 1, function(row) {
         point_in_polygon(point_x = as.numeric(row["SPATIAL_1"]),
                          point_y = as.numeric(row["SPATIAL_2"]),
@@ -573,12 +529,10 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
       })
       cells_to_keep_df <- pre_filtered_cells[inside_flags_cells, ]
     } else {
-      # Handle case where bounding box is empty or outside all points
-      cells_to_keep_df <- pre_filtered_cells[FALSE, ] # Return empty dataframe structure
+      cells_to_keep_df <- pre_filtered_cells[FALSE, ]
     }
 
     if (nrow(pre_filtered_img) > 0) {
-      # Apply the precise polygon test only to the pre-filtered image points
       inside_flags_img <- apply(pre_filtered_img, 1, function(row) {
         point_in_polygon(point_x = as.numeric(row["y"]), # Corresponds to SPATIAL_1
                          point_y = as.numeric(row["x"]), # Corresponds to SPATIAL_2
@@ -586,7 +540,7 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
       })
       img_to_keep <- pre_filtered_img[inside_flags_img, ]
     } else {
-      img_to_keep <- pre_filtered_img[FALSE, ] # Return empty dataframe structure
+      img_to_keep <- pre_filtered_img[FALSE, ]
     }
 
 
@@ -606,7 +560,6 @@ crop_b2c <- function(b2c, roi = 1, label.id = "labels_he_expanded") {
   } else {
     warning(paste("Label ID '", label.id, "' not found in b2c$pre@meta.data. Skipping filtering for b2c$pre.", sep=""))
   }
-
 
   # Update the image data frame
   b2c$img <- img_to_keep
