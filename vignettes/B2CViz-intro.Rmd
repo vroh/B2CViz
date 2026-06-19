@@ -147,7 +147,7 @@ The `plot_b2c` return value also includes `$step`, the median nearest-neighbour
 step size in plot coordinates (needed to scale distances to microns downstream).
 
 ``` r
-p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+p <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "CLU"), plot = FALSE)
 d <- get_dist(p, radius = 500)
 
 # quick distance distribution
@@ -162,18 +162,26 @@ conditions, runs a series of summaries, and supports group comparisons.
 ### 1. Collect and annotate get_dist output
 
 ``` r
-p1 <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
-p2 <- plot_b2c(b2c = b2c_2, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+p1 <- plot_b2c(b2c = b2c_1, feat = "seurat_clusters", plot = FALSE)
+p2 <- plot_b2c(b2c = b2c_2, feat = "seurat_clusters", plot = FALSE)
+p3 <- plot_b2c(b2c = b2c_3, feat = "seurat_clusters", plot = FALSE)
+p4 <- plot_b2c(b2c = b2c_4, feat = "seurat_clusters", plot = FALSE)
 
 d1 <- get_dist(p1, radius = 500)
 d2 <- get_dist(p2, radius = 500)
+d3 <- get_dist(p3, radius = 500)
+d4 <- get_dist(p4, radius = 500)
 
 d1$distances$roi   <- "roi_1"
 d1$distances$group <- "tumor"
 d2$distances$roi   <- "roi_2"
 d2$distances$group <- "stroma"
+d3$distances$roi   <- "roi_3"
+d3$distances$group <- "tumor"
+d4$distances$roi   <- "roi_4"
+d4$distances$group <- "stroma"
 
-combined <- rbind(d1$distances, d2$distances)
+combined <- rbind(d1$distances, d2$distances, d3$distances, d4$distances)
 ```
 
 ### 2. Standardize column names
@@ -234,21 +242,21 @@ head(cmp)
 
 ``` r
 # Point plot: mean neighbors per origin, faceted by neighbor type
-plot_stats(res, table = "pair_stats", focus = "Tumor",
+plot_stats(res, table = "pair_stats", focus = "B cells",
            x = "group", y = "mean_neighbors_per_origin",
            facet_y = "neighbor_type", group = "group")
 
 # Radial profile across distance bins
-plot_stats(res, table = "radial_stats", focus = "Tumor",
+plot_stats(res, table = "radial_stats", focus = "B cells",
            x = "dist_bin", y = "mean_neighbors_per_origin_bin",
            facet_y = "neighbor_type", group = "group")
 
 # Group-level heatmap (requires ComplexHeatmap and circlize)
-plot_hm(res, focus = "Tumor", metric = "mean_neighbors_per_origin_mean")
+plot_hm(res, focus = "B cells", metric = "mean_neighbors_per_origin_mean")
 
 # 2-D neighbor density map centered on a focal origin cell type
 plot_density(list(roi_1 = d1), roi = "roi_1",
-             origin = "Tumor", neighbor = "T cell", n = 50)
+             origin = "B cells", neighbor = "T cells", n = 50)
 ```
 
 ### 7. Handling ROI border effects
@@ -280,7 +288,8 @@ analysis with [hoodscanR](https://bioconductor.org/packages/hoodscanR) or
 
 ``` r
 # annot_col is the metadata column containing cell type labels
-spe <- b2c_to_hood(b2c_1$post, annot_col = "seurat_clusters")
+spe1 <- b2c_to_hood(b2c_1$post, annot_col = "seurat_clusters")
+spe2 <- b2c_to_hood(b2c_1$post, annot_col = "seurat_clusters")
 ```
 
 ## Compute a co-localization correlation matrix
@@ -290,7 +299,8 @@ scanning, merging, and metric calculation) and returns a cell-type
 co-localization correlation matrix:
 
 ``` r
-cor_mat <- get_cor_hood(spe, k = 100)
+cor_mat1 <- get_cor_hood(spe1, k = 100)
+cor_mat2 <- get_cor_hood(spe2, k = 100)
 ```
 
 ## Extract the upper triangle
@@ -299,10 +309,12 @@ cor_mat <- get_cor_hood(spe, k = 100)
 cell-type pairs:
 
 ``` r
-upper_df <- get_upper(cor_mat)
+upper_df1 <- get_upper(cor_mat1)
+upper_df2 <- get_upper(cor_mat2)
+upper_df <- rbind(dplyr::mutate(upper_df1, group = "Tumor"), dplyr::mutate(upper_df1, group = "Stroma"))
 head(upper_df)
-#   celltype1 celltype2         r
-# 1    B cell    T cell  0.312
+#      celltype1 celltype2 r      group
+# 1    B cells   T cells   0.312  Tumor
 # ...
 ```
 
@@ -313,11 +325,11 @@ cell type always appears as `celltype1`, then plots a faceted summary:
 
 ``` r
 plot_hood_focal(edge_df = upper_df,
-                focus   = "Tumor",
-                x       = "sample",
+                focus   = "B cells",
+                x       = "group",
                 metric  = "r",
                 facet_y = "celltype2",
-                group   = "condition")
+                group   = "group")
 ```
 
 ## Convert edge table back to a matrix

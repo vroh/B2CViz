@@ -10,7 +10,11 @@ You can install the development version of B2CViz from Gitlab with:
 
 ``` r
 install.packages("devtools")
-devtools::install_gitlab("vroh/B2CViz")
+devtools::install_github("BDSfacility/B2CViz")
+
+# mirrors
+# devtools::install_github("vroh/B2CViz")
+# devtools::install_gitlab("vroh/B2CViz")
 ```
 
 B2CViz depends on the following packages: `jpeg`, `png`, `tiff`, `Seurat`, `dplyr`, `ggplot2`, `ggrepel`, `imager`, `shiny`, `ggnewscale`, `tidyr`, `FNN`, `purrr`, `scales`, `httpuv`
@@ -259,9 +263,7 @@ plot_b2c(b2c = b2c_1, feat = c("seurat_clusters"), plot.type = "hulls", discrete
 
 ### Cell-cell distances
 
-Save the plot in a variable to compute cell-cell distances. `get_dist()` returns a **list** with two elements:
-- `$distances`: a data frame of all pairwise origin–neighbor pairs within the radius, with columns `origin_name`, `origin_marker`, `origin_value`, `neighbor_name`, `neighbor_marker`, `neighbor_value`, `distance`
-- `$locations`: a data frame of all displayed cells with columns `cell_id`, `x`, `y`
+Save the plot in a variable to compute cell-cell distances. `get_dist()` returns a **list** with two elements: - `$distances`: a data frame of all pairwise origin--neighbor pairs within the radius, with columns `origin_name`, `origin_marker`, `origin_value`, `neighbor_name`, `neighbor_marker`, `neighbor_value`, `distance` - `$locations`: a data frame of all displayed cells with columns `cell_id`, `x`, `y`
 
 The `step` element in the `plot_b2c` return value gives the median 2 µm step size (in plot coordinates), which is required to scale distances back to microns.
 
@@ -288,23 +290,31 @@ B2CViz provides a full radius-based neighborhood analysis pipeline. The typical 
 
 ``` r
 # Run get_dist() for each ROI (plot = FALSE forces coordinate translation off)
-p1 <- plot_b2c(b2c = b2c_1, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
-p2 <- plot_b2c(b2c = b2c_2, feat = c("CDH1", "seurat_clusters"), plot = FALSE)
+p1 <- plot_b2c(b2c = b2c_1, feat = "seurat_clusters", plot = FALSE)
+p2 <- plot_b2c(b2c = b2c_2, feat = "seurat_clusters", plot = FALSE)
+p3 <- plot_b2c(b2c = b2c_3, feat = "seurat_clusters", plot = FALSE)
+p4 <- plot_b2c(b2c = b2c_4, feat = "seurat_clusters", plot = FALSE)
 
 d1 <- get_dist(p1, radius = 500)
 d2 <- get_dist(p2, radius = 500)
+d3 <- get_dist(p3, radius = 500)
+d4 <- get_dist(p4, radius = 500)
 
 # Annotate each result with ROI and group labels, then combine
 d1$distances$roi   <- "roi_1"
 d1$distances$group <- "tumor"
 d2$distances$roi   <- "roi_2"
 d2$distances$group <- "stroma"
+d3$distances$roi   <- "roi_3"
+d3$distances$group <- "tumor"
+d4$distances$roi   <- "roi_4"
+d4$distances$group <- "stroma"
 
-combined <- rbind(d1$distances, d2$distances)
+combined <- rbind(d1$distances, d2$distances, d3$distances, d4$distances)
 
 # Standardize column names to the canonical format
 edges <- standardize_get_dist(combined,
-                              origin_type_col  = "origin_value",
+                              origin_type_col   = "origin_value",
                               neighbor_type_col = "neighbor_value")
 
 # Run the full pipeline (mean_step from p$step rescales distance breaks to microns)
@@ -314,43 +324,45 @@ res <- run_full_pipeline(edges, mean_step = p1$step)
 res <- rescale_res_distances(res, factor = p1$step)
 ```
 
-The pipeline returns a named list with:
-- `$qc`: basic sanity checks on the edge table
-- `$pair_stats`: per-ROI pairwise neighborhood statistics (edge counts, enrichment, distance summaries)
-- `$radial_stats`: per-ROI radial distance-bin profiles
-- `$cumulative_stats`: cumulative neighbor counts at a series of radii
-- `$group_pair_stats`: cross-ROI group-level summaries
-- `$cells`: cell-type abundance table derived from origin cells
+The pipeline returns a named list with: - `$qc`: basic sanity checks on the edge table - `$pair_stats`: per-ROI pairwise neighborhood statistics (edge counts, enrichment, distance summaries) - `$radial_stats`: per-ROI radial distance-bin profiles - `$cumulative_stats`: cumulative neighbor counts at a series of radii - `$group_pair_stats`: cross-ROI group-level summaries - `$cells`: cell-type abundance table derived from origin cells
 
 #### Comparing groups
 
 ``` r
 # Wilcoxon test comparing two groups across all cell-type pairs
-cmp <- compare_groups(res$pair_stats, metric = "mean_neighbors_per_origin",
-                      group_a = "tumor", group_b = "stroma")
+cmp <- compare_groups(res$pair_stats,
+                      metric  = "mean_neighbors_per_origin",
+                      group_a = "tumor",
+                      group_b = "stroma")
 head(cmp)
 ```
 
 #### Plotting results
 
+![Stats plots](man/figures/plot_stat.png)
+
 ``` r
-# Dot-plot: mean neighbors per origin for a focal cell type, faceted by neighbor type
-plot_stats(res, table = "pair_stats", focus = "Tumor",
+# Point plot: mean neighbors per origin, faceted by neighbor type
+plot_stats(res, table = "pair_stats", focus = "B cells",
            x = "group", y = "mean_neighbors_per_origin",
            facet_y = "neighbor_type", group = "group")
 
 # Radial profile across distance bins
-plot_stats(res, table = "radial_stats", focus = "Tumor",
+plot_stats(res, table = "radial_stats", focus = "B cells",
            x = "dist_bin", y = "mean_neighbors_per_origin_bin",
            facet_y = "neighbor_type", group = "group")
 
-# Heatmap of group-level means (requires ComplexHeatmap)
-plot_hm(res, focus = "Tumor", metric = "mean_neighbors_per_origin_mean")
+# Group-level heatmap (requires ComplexHeatmap and circlize)
+plot_hm(res, focus = "B cells", metric = "mean_neighbors_per_origin_mean")
 
-# 2-D neighbor density map centered on a focal origin type
+# 2-D neighbor density map centered on a focal origin cell type
 plot_density(list(roi_1 = d1), roi = "roi_1",
-             origin = "Tumor", neighbor = "T cell", n = 50)
+             origin = "B cells", neighbor = "T cells", n = 50)
 ```
+
+The density plots is a helpful representation of the neighborhood around an average celltype of interest.
+
+![Density plots](man/figures/plot_density.png)
 
 #### Handling ROI border effects
 
@@ -364,6 +376,10 @@ res <- run_full_pipeline(edges, mean_step = p1$step,
                          coords = d1$locations,
                          roi_windows = roi_windows)
 ```
+
+![Border trimming](man/figures/roi_border.png)
+
+The red cells are excluded from the target neighbors to avoid border effects.
 
 ## hoodscanR / Statial integration
 

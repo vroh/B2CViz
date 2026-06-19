@@ -78,7 +78,7 @@ load_b2c <- function(pre = NULL, post = NULL, path = NULL, data = "b2c", slice =
   b2c$data <- "b2c"
   if(!is.null(scale.factor)) {
     # Rescale the image coordinates
-    b2c$img <- b2c$img %>%
+    b2c$img <- b2c$img |>
       dplyr::mutate(
         x = x / scale.factor,
         y = y / scale.factor
@@ -111,19 +111,19 @@ scaledown_img <- function(b2c, grid.size = 10) {
   grid.size <- grid.size
 
   # Aggregate the data
-  output <- b2c$img %>%
+  output <- b2c$img |>
     dplyr::mutate(
       x_bin = floor(x / grid.size) * grid.size,
       y_bin = floor(y / grid.size) * grid.size
-    ) %>%
-    dplyr::group_by(x_bin, y_bin) %>%
+    ) |>
+    dplyr::group_by(x_bin, y_bin) |>
     dplyr::summarise(
       r = mean(r),
       g = mean(g),
       b = mean(b)
-    ) %>%
-    dplyr::select(x_bin, y_bin, r, g, b) %>%
-    dplyr::rename(x = "x_bin", y = "y_bin") %>%
+    ) |>
+    dplyr::select(x_bin, y_bin, r, g, b) |>
+    dplyr::rename(x = "x_bin", y = "y_bin") |>
     dplyr::mutate(color = rgb(r, g, b))
   b2c$img_sd <- output
   b2c

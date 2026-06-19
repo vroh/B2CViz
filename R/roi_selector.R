@@ -12,16 +12,16 @@ roi_selector <- function(path, b2c = NULL) {
   post <- b2c$post
 
   # --- State Management ---
-  roi_coords_list <- reactiveVal(list()) # Stores final ROIs
-  redraw_trigger <- reactiveVal(0) # Triggers plot redraws (mainly for polygon updates)
+  roi_coords_list <- shiny::reactiveVal(list()) # Stores final ROIs
+  redraw_trigger <- shiny::reactiveVal(0) # Triggers plot redraws (mainly for polygon updates)
 
   # Polygon drawing state
-  drawing_mode <- reactiveVal(FALSE) # Are we currently drawing a polygon?
-  current_polygon_points <- reactiveVal(list()) # Points added to the current polygon (original coords)
-  selected_rectangle_orig <- reactiveVal(NULL) # Stores the *original* image coords of the brushed rectangle
+  drawing_mode <- shiny::reactiveVal(FALSE) # Are we currently drawing a polygon?
+  current_polygon_points <- shiny::reactiveVal(list()) # Points added to the current polygon (original coords)
+  selected_rectangle_orig <- shiny::reactiveVal(NULL) # Stores the *original* image coords of the brushed rectangle
 
   # --- Add caching for the ROI image snippet ---
-  cached_roi_img <- reactiveVal(NULL)
+  cached_roi_img <- shiny::reactiveVal(NULL)
 
   # --- Image Loading and Scaling ---
   if (!file.exists(path)) {
@@ -44,39 +44,39 @@ roi_selector <- function(path, b2c = NULL) {
   y_scale <- imager::height(original_img) / imager::height(display_img)
 
   # --- UI Definition ---
-  ui <- fluidPage(
-    titlePanel("ROI Selector"),
-    sidebarLayout(
-      sidebarPanel(
-        h4("Instructions:"),
-        p("1. Drag a rectangle on the main image."),
-        p("2. Click 'Add Rectangle ROI' OR"),
-        p("3. Click 'Start/Reset Polygon' to draw within the zoom view."),
-        p("4. Click points in the zoom view. Click near start to finish."),
-        p("5. Click 'Add Polygon ROI'."),
-        hr(),
-        actionButton("add_rect", "Add Rectangle ROI", icon = icon("vector-square")),
-        actionButton("start_poly", "Start/Reset Polygon", icon = icon("draw-polygon")),
-        actionButton("add_poly", "Add Polygon ROI", icon = icon("check")),
-        actionButton("clear_poly", "Clear Polygon Drawing", icon = icon("eraser"), disabled = TRUE),
-        hr(),
-        actionButton("finish", "Finish and Close", icon = icon("sign-out-alt")),
-        hr(),
-        h4("Selected ROIs:"),
-        verbatimTextOutput("roi_list"),
+  ui <- shiny::fluidPage(
+    shiny::titlePanel("ROI Selector"),
+    shiny::sidebarLayout(
+      shiny::sidebarPanel(
+        shiny::h4("Instructions:"),
+        shiny::p("1. Drag a rectangle on the main image."),
+        shiny::p("2. Click 'Add Rectangle ROI' OR"),
+        shiny::p("3. Click 'Start/Reset Polygon' to draw within the zoom view."),
+        shiny::p("4. Click points in the zoom view. Click near start to finish."),
+        shiny::p("5. Click 'Add Polygon ROI'."),
+        shiny::hr(),
+        shiny::actionButton("add_rect", "Add Rectangle ROI", icon = shiny::icon("vector-square")),
+        shiny::actionButton("start_poly", "Start/Reset Polygon", icon = shiny::icon("draw-polygon")),
+        shiny::actionButton("add_poly", "Add Polygon ROI", icon = shiny::icon("check")),
+        shiny::actionButton("clear_poly", "Clear Polygon Drawing", icon = shiny::icon("eraser"), disabled = TRUE),
+        shiny::hr(),
+        shiny::actionButton("finish", "Finish and Close", icon = shiny::icon("sign-out-alt")),
+        shiny::hr(),
+        shiny::h4("Selected ROIs:"),
+        shiny::verbatimTextOutput("roi_list"),
         width = 3
       ),
-      mainPanel(
-        fluidRow(
-          column(6,
-                 h4("Full Image"),
-                 plotOutput("main_plot", height = "auto",
+      shiny::mainPanel(
+        shiny::fluidRow(
+          shiny::column(6,
+                 shiny::h4("Full Image"),
+                 shiny::plotOutput("main_plot", height = "auto",
                             click = "plot_click",
-                            brush = brushOpts(id = "plot_brush", resetOnNew = FALSE))
+                            brush = shiny::brushOpts(id = "plot_brush", resetOnNew = FALSE))
           ),
-          column(6,
-                 h4("Zoomed Region / Polygon Drawing"),
-                 plotOutput("roi_plot", height = "auto",
+          shiny::column(6,
+                 shiny::h4("Zoomed Region / Polygon Drawing"),
+                 shiny::plotOutput("roi_plot", height = "auto",
                             click = "roi_plot_click")
           )
         )
@@ -161,8 +161,8 @@ roi_selector <- function(path, b2c = NULL) {
         if (sel_orig$xmax > sel_orig$xmin && sel_orig$ymax > sel_orig$ymin) {
           roi_subset <- tryCatch(
             imager::imsub(original_img,
-                  x %inr% c(sel_orig$xmin, sel_orig$xmax),
-                  y %inr% c(sel_orig$ymin, sel_orig$ymax)),
+                  imager::`%inr%`(x, c(sel_orig$xmin, sel_orig$xmax)),
+                  imager::`%inr%`(y, c(sel_orig$ymin, sel_orig$ymax))),
             error = function(e) {
               showNotification(paste("Error subsetting image:", e$message), type="error")
               return(NULL)
@@ -409,7 +409,7 @@ roi_selector <- function(path, b2c = NULL) {
   # --- Run the App ---
   app_port <- httpuv::randomPort()
   print(paste("Starting Shiny app on port", app_port))
-  result <- runApp(list(ui = ui, server = server), port = app_port, launch.browser = getOption("shiny.launch.browser", interactive()))
+  result <- shiny::runApp(list(ui = ui, server = server), port = app_port, launch.browser = getOption("shiny.launch.browser", interactive()))
 
   if (is.reactive(result)) { return(result()) } else { return(result) }
 }

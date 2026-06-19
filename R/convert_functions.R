@@ -84,14 +84,13 @@ plot_hood_focal <- function(edge_df, focus, x, metric, facet_x = ".", facet_y = 
   df <-
     rbind(
       edge_df[grep(focus, edge_df$celltype1),],
-      edge_df[grep(focus, edge_df$celltype2),] %>%
-        apply(., 1, function(u) u[c(2, 1, 3:length(u))]) %>%
-        t() %>% as.data.frame() %>%
-        setNames(c("celltype1", "celltype2", colnames(edge_df)[3:length(edge_df)])) %>%
-        dplyr::mutate(r = as.numeric(r),
-               z = as.numeric(z))
+      edge_df[grep(focus, edge_df$celltype2),] |>
+        apply(MARGIN = 1, FUN = function(u) u[c(2, 1, 3:length(u))]) |>
+        t() |> as.data.frame() |>
+        setNames(c("celltype1", "celltype2", colnames(edge_df)[3:length(edge_df)])) |>
+        dplyr::mutate(dplyr::across(dplyr::any_of(c("r", "z")), as.numeric))
     )
-  if(sort) df$celltype2 <- factor(df$celltype2, levels = (dplyr::group_by(df, celltype2) %>% dplyr::summarize(mm = mean(!!rlang::sym(metric))) %>% dplyr::arrange(dplyr::desc(mm)))$celltype2 %>% unique())
+  if(sort) df$celltype2 <- factor(df$celltype2, levels = (dplyr::group_by(df, celltype2) |> dplyr::summarize(mm = mean(!!rlang::sym(metric))) |> dplyr::arrange(dplyr::desc(mm)))$celltype2 |> unique())
   ggplot2::ggplot(df, ggplot2::aes(x = !!rlang::sym(x), y = !!rlang::sym(metric))) +
     ggplot2::geom_hline(yintercept = 0, col = "gray") +
     ggplot2::geom_point(ggplot2::aes(group = !!rlang::sym(group), col = !!rlang::sym(group))) +

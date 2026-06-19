@@ -34,7 +34,7 @@ get_dist <- function(plot, radius = 100) {
                         (df$SPATIAL_2 - current_cell$SPATIAL_2)^2)
     neighbors <- df[distances <= radius & distances > 0, ]
     if (nrow(neighbors) > 0) {
-      neighbors <- neighbors[,3:5] %>%
+      neighbors <- neighbors[,3:5] |>
         dplyr::mutate(distance = distances[distances <= radius & distances > 0])
       results[[i]] <- data.frame(
         origin_name = current_cell[,3],
@@ -63,7 +63,7 @@ get_dist <- function(plot, radius = 100) {
   final_output <- final_output[complete.cases(final_output),]
   return(list(
     distances = final_output,
-    locations = plot$cells[,c(length(plot$cells), 1, 2)] %>%
+    locations = plot$cells[,c(length(plot$cells), 1, 2)] |>
       setNames(c("cell_id", "x", "y"))
   ))
 }

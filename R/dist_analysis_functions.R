@@ -57,7 +57,7 @@ standardize_get_dist <- function(df,
                                  neighbor_id_col = "neighbor_name",
                                  neighbor_type_col = "neighbor_value",
                                  distance_col = "distance") {
-  df %>%
+  df |>
     dplyr::transmute(
       roi = as.character(.data[[roi_col]]),
       group = as.character(.data[[group_col]]),
@@ -66,7 +66,7 @@ standardize_get_dist <- function(df,
       neighbor_id = as.character(.data[[neighbor_id_col]]),
       neighbor_type = as.character(.data[[neighbor_type_col]]),
       distance = as.numeric(.data[[distance_col]])
-    ) %>%
+    ) |>
     dplyr::filter(
       !is.na(roi), !is.na(group),
       !is.na(origin_id), !is.na(origin_type),
@@ -89,7 +89,7 @@ standardize_get_dist <- function(df,
 #'   \code{cell_id}, and \code{cell_type} — one row per unique cell.
 #' @export
 derive_cells_from_origins <- function(edges) {
-  edges %>%
+  edges |>
     dplyr::distinct(roi, group, cell_id = origin_id, cell_type = origin_type)
 }
 
@@ -117,14 +117,14 @@ check_get_dist_table <- function(edges) {
   cells <- derive_cells_from_origins(edges)
 
   missing_neighbor_ids <- dplyr::anti_join(
-    edges %>% dplyr::distinct(roi, neighbor_id),
-    cells %>% dplyr::distinct(roi, cell_id),
+    edges |> dplyr::distinct(roi, neighbor_id),
+    cells |> dplyr::distinct(roi, cell_id),
     by = c("roi", "neighbor_id" = "cell_id")
   )
 
-  mismatched_origin_labels <- edges %>%
-    dplyr::distinct(roi, origin_id, origin_type) %>%
-    dplyr::count(roi, origin_id) %>%
+  mismatched_origin_labels <- edges |>
+    dplyr::distinct(roi, origin_id, origin_type) |>
+    dplyr::count(roi, origin_id) |>
     dplyr::filter(n > 1)
 
   list(
@@ -132,8 +132,8 @@ check_get_dist_table <- function(edges) {
     n_cells = nrow(cells),
     n_rois = dplyr::n_distinct(edges$roi),
     n_groups = dplyr::n_distinct(edges$group),
-    self_edges = edges %>% dplyr::filter(origin_id == neighbor_id),
-    duplicate_edges = edges %>% dplyr::count(roi, group, origin_id, neighbor_id, distance) %>% dplyr::filter(n > 1),
+    self_edges = edges |> dplyr::filter(origin_id == neighbor_id),
+    duplicate_edges = edges |> dplyr::count(roi, group, origin_id, neighbor_id, distance) |> dplyr::filter(n > 1),
     missing_neighbor_ids = missing_neighbor_ids,
     origins_with_multiple_labels = mismatched_origin_labels
   )
@@ -156,11 +156,11 @@ clean_edges <- function(edges, drop_self = TRUE, deduplicate = FALSE) {
   out <- edges
 
   if (drop_self) {
-    out <- out %>% dplyr::filter(origin_id != neighbor_id)
+    out <- out |> dplyr::filter(origin_id != neighbor_id)
   }
 
   if (deduplicate) {
-    out <- out %>% dplyr::distinct()
+    out <- out |> dplyr::distinct()
   }
 
   out
@@ -175,8 +175,8 @@ clean_edges <- function(edges, drop_self = TRUE, deduplicate = FALSE) {
 #' @return A filtered edge data frame.
 #' @export
 subset_radius <- function(edges, max_radius = NULL, min_radius = 0) {
-  out <- edges %>% dplyr::filter(distance >= min_radius)
-  if (!is.null(max_radius)) out <- out %>% dplyr::filter(distance <= max_radius)
+  out <- edges |> dplyr::filter(distance >= min_radius)
+  if (!is.null(max_radius)) out <- out |> dplyr::filter(distance <= max_radius)
   out
 }
 
@@ -191,10 +191,10 @@ subset_radius <- function(edges, max_radius = NULL, min_radius = 0) {
 #'   \code{cell_type}, \code{n_cells}, and \code{global_freq}.
 #' @export
 cell_abundance <- function(edges) {
-  derive_cells_from_origins(edges) %>%
-    dplyr::count(group, roi, cell_type, name = "n_cells") %>%
-    dplyr::group_by(group, roi) %>%
-    dplyr::mutate(global_freq = n_cells / sum(n_cells)) %>%
+  derive_cells_from_origins(edges) |>
+    dplyr::count(group, roi, cell_type, name = "n_cells") |>
+    dplyr::group_by(group, roi) |>
+    dplyr::mutate(global_freq = n_cells / sum(n_cells)) |>
     dplyr::ungroup()
 }
 
@@ -221,24 +221,24 @@ summarize_pairs <- function(edges, max_radius = NULL, min_radius = 0) {
   edges_use <- subset_radius(edges, max_radius = max_radius, min_radius = min_radius)
   cells <- derive_cells_from_origins(edges)
 
-  origin_counts <- cells %>%
+  origin_counts <- cells |>
     dplyr::count(group, roi, origin_type = cell_type, name = "n_origin_cells")
 
-  neighbor_abundance <- cells %>%
-    dplyr::count(group, roi, neighbor_type = cell_type, name = "n_neighbor_cells") %>%
-    dplyr::group_by(group, roi) %>%
-    dplyr::mutate(global_freq = n_neighbor_cells / sum(n_neighbor_cells)) %>%
+  neighbor_abundance <- cells |>
+    dplyr::count(group, roi, neighbor_type = cell_type, name = "n_neighbor_cells") |>
+    dplyr::group_by(group, roi) |>
+    dplyr::mutate(global_freq = n_neighbor_cells / sum(n_neighbor_cells)) |>
     dplyr::ungroup()
 
-  edge_counts <- edges_use %>%
+  edge_counts <- edges_use |>
     dplyr::count(group, roi, origin_type, neighbor_type, name = "n_edges")
 
-  presence_counts <- edges_use %>%
-    dplyr::distinct(group, roi, origin_id, origin_type, neighbor_type) %>%
+  presence_counts <- edges_use |>
+    dplyr::distinct(group, roi, origin_id, origin_type, neighbor_type) |>
     dplyr::count(group, roi, origin_type, neighbor_type, name = "n_origin_with_neighbor")
 
-  distance_stats <- edges_use %>%
-    dplyr::group_by(group, roi, origin_type, neighbor_type) %>%
+  distance_stats <- edges_use |>
+    dplyr::group_by(group, roi, origin_type, neighbor_type) |>
     dplyr::summarise(
       mean_distance = mean(distance, na.rm = TRUE),
       median_distance = median(distance, na.rm = TRUE),
@@ -247,14 +247,14 @@ summarize_pairs <- function(edges, max_radius = NULL, min_radius = 0) {
       .groups = "drop"
     )
 
-  edge_counts %>%
-    dplyr::left_join(presence_counts, by = c("group", "roi", "origin_type", "neighbor_type")) %>%
-    dplyr::left_join(distance_stats, by = c("group", "roi", "origin_type", "neighbor_type")) %>%
-    dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) %>%
-    dplyr::left_join(neighbor_abundance, by = c("group", "roi", "neighbor_type")) %>%
-    dplyr::group_by(group, roi, origin_type) %>%
-    dplyr::mutate(prop_of_neighbors = n_edges / sum(n_edges)) %>%
-    dplyr::ungroup() %>%
+  edge_counts |>
+    dplyr::left_join(presence_counts, by = c("group", "roi", "origin_type", "neighbor_type")) |>
+    dplyr::left_join(distance_stats, by = c("group", "roi", "origin_type", "neighbor_type")) |>
+    dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) |>
+    dplyr::left_join(neighbor_abundance, by = c("group", "roi", "neighbor_type")) |>
+    dplyr::group_by(group, roi, origin_type) |>
+    dplyr::mutate(prop_of_neighbors = n_edges / sum(n_edges)) |>
+    dplyr::ungroup() |>
     dplyr::mutate(
       radius_max = ifelse(is.null(max_radius), Inf, max_radius),
       radius_min = min_radius,
@@ -290,7 +290,7 @@ summarize_radial_bins <- function(edges,
                                   right = FALSE) {
   cells <- derive_cells_from_origins(edges)
 
-  origin_counts <- cells %>%
+  origin_counts <- cells |>
     dplyr::count(group, roi, origin_type = cell_type, name = "n_origin_cells")
 
   bin_tbl <- tidyr::tibble(
@@ -300,26 +300,26 @@ summarize_radial_bins <- function(edges,
                    right = right),
     r_inner = breaks[-length(breaks)],
     r_outer = breaks[-1]
-  ) %>%
+  ) |>
     dplyr::mutate(
       shell_area = pi * (r_outer^2 - r_inner^2),
       shell_width = r_outer - r_inner,
       shell_midpoint = (r_inner + r_outer) / 2
     )
 
-  edges %>%
+  edges |>
     dplyr::mutate(
       dist_bin = cut(distance, breaks = breaks, include.lowest = TRUE, right = right)
-    ) %>%
-    dplyr::filter(!is.na(dist_bin)) %>%
-    dplyr::count(group, roi, origin_type, neighbor_type, dist_bin, name = "n_edges") %>%
-    dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) %>%
-    dplyr::left_join(bin_tbl, by = "dist_bin") %>%
-    dplyr::group_by(group, roi, origin_type, dist_bin) %>%
+    ) |>
+    dplyr::filter(!is.na(dist_bin)) |>
+    dplyr::count(group, roi, origin_type, neighbor_type, dist_bin, name = "n_edges") |>
+    dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) |>
+    dplyr::left_join(bin_tbl, by = "dist_bin") |>
+    dplyr::group_by(group, roi, origin_type, dist_bin) |>
     dplyr::mutate(
       prop_in_bin = n_edges / sum(n_edges)
-    ) %>%
-    dplyr::ungroup() %>%
+    ) |>
+    dplyr::ungroup() |>
     dplyr::mutate(
       mean_neighbors_per_origin_bin = n_edges / n_origin_cells,
       neighbors_per_origin_per_area = n_edges / (n_origin_cells * shell_area),
@@ -346,26 +346,26 @@ summarize_radial_bins <- function(edges,
 summarize_cumulative <- function(edges, radii = c(25, 50, 100, 200, 400)) {
   cells <- derive_cells_from_origins(edges)
 
-  origin_counts <- cells %>%
+  origin_counts <- cells |>
     dplyr::count(group, roi, origin_type = cell_type, name = "n_origin_cells")
 
   purrr::map_dfr(radii, function(r) {
-    edges_r <- edges %>% dplyr::filter(distance <= r)
+    edges_r <- edges |> dplyr::filter(distance <= r)
 
-    edge_counts <- edges_r %>%
+    edge_counts <- edges_r |>
       dplyr::count(group, roi, origin_type, neighbor_type, name = "n_edges_within_r")
 
-    presence_counts <- edges_r %>%
-      dplyr::distinct(group, roi, origin_id, origin_type, neighbor_type) %>%
+    presence_counts <- edges_r |>
+      dplyr::distinct(group, roi, origin_id, origin_type, neighbor_type) |>
       dplyr::count(group, roi, origin_type, neighbor_type, name = "n_origin_with_neighbor_within_r")
 
-    edge_counts %>%
-      dplyr::full_join(presence_counts, by = c("group", "roi", "origin_type", "neighbor_type")) %>%
+    edge_counts |>
+      dplyr::full_join(presence_counts, by = c("group", "roi", "origin_type", "neighbor_type")) |>
       tidyr::replace_na(list(
         n_edges_within_r = 0,
         n_origin_with_neighbor_within_r = 0
-      )) %>%
-      dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) %>%
+      )) |>
+      dplyr::left_join(origin_counts, by = c("group", "roi", "origin_type")) |>
       dplyr::mutate(
         radius = r,
         mean_neighbors_per_origin = n_edges_within_r / n_origin_cells,
@@ -385,8 +385,8 @@ summarize_cumulative <- function(edges, radii = c(25, 50, 100, 200, 400)) {
 #'   and columns for mean and SD of key metrics across ROIs.
 #' @export
 summarize_groups <- function(pair_stats) {
-  pair_stats %>%
-    dplyr::group_by(group, origin_type, neighbor_type) %>%
+  pair_stats |>
+    dplyr::group_by(group, origin_type, neighbor_type) |>
     dplyr::summarise(
       n_rois = dplyr::n_distinct(roi),
       mean_neighbors_per_origin_mean = mean(mean_neighbors_per_origin, na.rm = TRUE),
@@ -432,10 +432,10 @@ compare_groups <- function(pair_stats,
     group_b <- gs[2]
   }
 
-  pair_stats %>%
-    dplyr::filter(group %in% c(group_a, group_b)) %>%
-    dplyr::select(group, roi, origin_type, neighbor_type, value = dplyr::all_of(metric)) %>%
-    dplyr::group_by(origin_type, neighbor_type) %>%
+  pair_stats |>
+    dplyr::filter(group %in% c(group_a, group_b)) |>
+    dplyr::select(group, roi, origin_type, neighbor_type, value = dplyr::all_of(metric)) |>
+    dplyr::group_by(origin_type, neighbor_type) |>
     dplyr::summarise(
       n_roi_group_a = sum(group == group_a & !is.na(value)),
       n_roi_group_b = sum(group == group_b & !is.na(value)),
@@ -452,8 +452,8 @@ compare_groups <- function(pair_stats,
         error = function(e) NA_real_
       ),
       .groups = "drop"
-    ) %>%
-    dplyr::mutate(p_adj = p.adjust(p_value, method = "BH")) %>%
+    ) |>
+    dplyr::mutate(p_adj = p.adjust(p_value, method = "BH")) |>
     dplyr::arrange(p_adj, dplyr::desc(abs(delta)))
 }
 
@@ -472,8 +472,8 @@ compare_groups <- function(pair_stats,
 #'   \code{d_bottom}, \code{d_top}, and \code{dist_to_border}.
 #' @export
 compute_border_distance <- function(coords, roi_windows) {
-  coords %>%
-    dplyr::left_join(roi_windows, by = "roi") %>%
+  coords |>
+    dplyr::left_join(roi_windows, by = "roi") |>
     dplyr::mutate(
       d_left = x - xmin,
       d_right = xmax - x,
@@ -499,11 +499,11 @@ compute_border_distance <- function(coords, roi_windows) {
 #'   is at least \code{radius} away from all ROI borders.
 #' @export
 trim_origins_by_border <- function(edges, coords, roi_windows, radius) {
-  eligible <- compute_border_distance(coords, roi_windows) %>%
-    dplyr::filter(dist_to_border >= radius) %>%
+  eligible <- compute_border_distance(coords, roi_windows) |>
+    dplyr::filter(dist_to_border >= radius) |>
     dplyr::select(roi, origin_id = cell_id)
 
-  edges %>%
+  edges |>
     dplyr::semi_join(eligible, by = c("roi", "origin_id"))
 }
 
@@ -602,7 +602,7 @@ rescale_res_distances <- function(res, factor = 10) {
     if (is.null(df)) return(df)
     cols_present <- intersect(cols, colnames(df))
     if (length(cols_present) > 0) {
-      df <- df %>%
+      df <- df |>
         dplyr::mutate(dplyr::across(dplyr::all_of(cols_present), ~ .x / factor))
     }
     df
@@ -647,17 +647,17 @@ rescale_res_distances <- function(res, factor = 10) {
     )
 
     if ("shell_area" %in% colnames(out$radial_stats)) {
-      out$radial_stats <- out$radial_stats %>%
+      out$radial_stats <- out$radial_stats |>
         dplyr::mutate(shell_area = shell_area / (factor^2))
     }
 
     if ("neighbors_per_origin_per_area" %in% colnames(out$radial_stats)) {
-      out$radial_stats <- out$radial_stats %>%
+      out$radial_stats <- out$radial_stats |>
         dplyr::mutate(neighbors_per_origin_per_area = neighbors_per_origin_per_area * (factor^2))
     }
 
     if ("neighbors_per_origin_per_width" %in% colnames(out$radial_stats)) {
-      out$radial_stats <- out$radial_stats %>%
+      out$radial_stats <- out$radial_stats |>
         dplyr::mutate(neighbors_per_origin_per_width = neighbors_per_origin_per_width * factor)
     }
 
@@ -774,7 +774,7 @@ plot_hm <- function(res, focus, metric, clustered = FALSE) {
   if (!requireNamespace("ComplexHeatmap", quietly = TRUE))
     stop("ComplexHeatmap is required but not installed. Install via: BiocManager::install('ComplexHeatmap')")
 
-  df <- dplyr::filter(res$group_pair_stats, origin_type == focus) %>%
+  df <- dplyr::filter(res$group_pair_stats, origin_type == focus) |>
     dplyr::select(group, neighbor_type, !!rlang::sym(metric))
 
   mat <- t(sapply(split(df, df$group), function(u) {

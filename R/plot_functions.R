@@ -70,9 +70,9 @@ overview_b2c <- function(b2c, feat, pt.size = 0.001, he_alpha = 0.4,
       meta <- cbind(b2c$pre@meta.data, b2c$pre@reductions$spatial@cell.embeddings)
 
       # Calculate micron-to-plot conversion factor
-      adjacent_spots <- meta %>%
-        dplyr::filter(array_col == min(array_col)) %>% # Same column
-        dplyr::arrange(array_row) %>%
+      adjacent_spots <- meta |>
+        dplyr::filter(array_col == min(array_col)) |> # Same column
+        dplyr::arrange(array_row) |>
         dplyr::slice(1:2) # First two rows in same column
 
       if(nrow(adjacent_spots) < 2) stop("Insufficient adjacent spots for scale calculation, can't add scalebar, set scalebar_micron = FALSE")
@@ -231,8 +231,8 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   if("hulls" %in% plot.type) {
     if(b2c$data == "b2c") {
-      df_pre <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
-        dplyr::group_by(dplyr::across(label.id)) %>%
+      df_pre <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) |>
+        dplyr::group_by(dplyr::across(label.id)) |>
         dplyr::slice(chull(SPATIAL_1, SPATIAL_2))
     }
     if(b2c$data == "spaceranger") {
@@ -626,8 +626,8 @@ plot_segmentation <- function(b2c, label.id = "labels_he_expanded", he_alpha = 1
 
   # fetch data
   if(b2c$data == "b2c") {
-    df <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) %>%
-      dplyr::group_by(dplyr::across(label.id)) %>%
+    df <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) |>
+      dplyr::group_by(dplyr::across(label.id)) |>
       dplyr::slice(chull(SPATIAL_1, SPATIAL_2))
   }
   if(b2c$data == "spaceranger") {
@@ -659,7 +659,7 @@ plot_dist <- function(df, binwidth = 5) {
     ggplot2::ggplot(df, ggplot2::aes(x = distance, fill = neighbor_marker)) +
       ggplot2::geom_histogram(binwidth = binwidth, color = NA, alpha = 0.3, position = "identity") +
       ggplot2::stat_bin(binwidth = binwidth, ggplot2::aes(y = ggplot2::after_stat(count), group = neighbor_marker, color = neighbor_marker), geom = "smooth", se = FALSE, linewidth = 0.5, position = "identity") +
-      ggplot2::geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) %>% dplyr::summarise(meandist = mean(distance)), ggplot2::aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
+      ggplot2::geom_vline(data = dplyr::group_by(df, neighbor_marker, origin_marker) |> dplyr::summarise(meandist = mean(distance)), ggplot2::aes(xintercept = meandist, col = neighbor_marker), linetype = 2) +
       ggplot2::facet_grid(origin_marker ~ ., scales = "free_y") +
       ggplot2::xlab("distance (microns)") +
       ggplot2::theme_light() +
