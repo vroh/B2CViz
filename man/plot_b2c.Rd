@@ -23,7 +23,7 @@ plot_b2c(
   shape = NULL,
   he_alpha = 0.3,
   title = NULL,
-  plot.type = c("points", "hulls"),
+  plot.type = "both",
   show.bins = "no",
   outline.hulls = NULL,
   show.labels = F,
@@ -33,7 +33,9 @@ plot_b2c(
   translate = T,
   filter.feat = NULL,
   filter.threshold = 0,
-  filter.type = "or"
+  filter.type = "or",
+  col.cont = NULL,
+  outline.linewidth = 0.5
 )
 }
 \arguments{
@@ -65,13 +67,15 @@ plot_b2c(
 
 \item{col.discrete}{If the feature is a discrete variable, display the levels with the provided vector of colors}
 
+\item{pt.size}{Point size}
+
 \item{shape}{Shape of the points. Defaults to solid circle (16) for 1 feature, empty circle (21) for multi-feature plot to better see multi-positive cells}
 
 \item{he_alpha}{Alpha value for H&E image}
 
 \item{title}{Plot title}
 
-\item{plot.type}{Type of plot (points or hulls or both)}
+\item{plot.type}{Rendered geometry for each feature: "points" (points only), "hulls" (translucent/gradient hull fill only), "both" (hull fill + points) or "outline" (outline of the hulls of the cells expressing the feature, with a gradient border color for continuous features or level colors for discrete ones). Provide a single value (applied to all features) or a vector matching feat to set the geometry of each feature independently}
 
 \item{show.bins}{Whether to show the 2um bins data. Defaults to "no", use "yes" to show bins corresponding to the feature and "all" to show all bins data (in white)}
 
@@ -93,7 +97,9 @@ plot_b2c(
 
 \item{filter.type}{Sets how the pre-filter should behave, can be either "or" (default) or "and". With the latter, cells have to pass the filter for every filtering features to be retained. With "or", passing any of the filter is sufficient}
 
-\item{pt_size}{Point size}
+\item{col.cont}{Color (single value or vector for each feature) used to render a continuous feature with a single flat color instead of a gradient (e.g. to combine a discrete feature shown as translucent hulls with gene expression). The flat color is applied to the geometry selected for that feature in plot.type (hull fill, points or outline). Cells displayed are still selected by min.visible/filter.feat. Use NA for a given feature to fall back to the gradient}
+
+\item{outline.linewidth}{Linewidth of the hull outlines for features rendered with plot.type = "outline"}
 }
 \description{
 Plot B2C object

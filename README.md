@@ -180,7 +180,7 @@ plot_b2c(b2c = b2c_1, feat = "CDH1", alpha.low = 0.1, min.visible = 2, he_alpha 
 
 ### Cells display format
 
-Choose between points (bin2cell centroids), hulls (cells) or a combination of the two
+Choose between points (bin2cell centroids), hulls (cells), a combination of the two, or the outline of the cells
 
 ``` r
 plot_b2c(b2c = b2c_1, feat = "CDH1", plot.type = "points")
@@ -258,6 +258,26 @@ plot_b2c(b2c = b2c_1, feat = c("seurat_clusters"), plot.type = "hulls", discrete
 ```
 
 ![Discrete variables](man/figures/b2c_discrete.jpg)
+
+### Per-feature geometry
+
+Since v0.2.2, the geometry used to render each feature can be set independently via `plot.type`: "points" (points only), "hulls" (hull fill only), "both" (hull fill + points, default) or "outline" (outline of the hulls of the cells expressing the feature). A single value applies to all features, or provide a vector matching `feat` to set the geometry of each feature. For example, plot a discrete variable as translucent hulls and overlay a continuous feature as hull outlines with a gradient border color
+
+``` r
+plot_b2c(b2c = b2c_1, feat = c("seurat_clusters", "CDH1"), plot.type = c("hulls", "outline"), col.high = c(NA, "black"), discrete.alpha = 0.4, he_alpha = 0.2)
+```
+
+![Per-feature geometry](man/figures/b2c_geometry.jpg)
+
+The linewidth of the outlines can be adjusted with `outline.linewidth`. A continuous feature can also be rendered with a single flat color instead of a gradient using the `col.cont` argument (single value or vector, one per feature; use `NA` for a given feature to keep its gradient). The flat color is applied to the geometry chosen in `plot.type` for that feature (hull fill, points or outline)
+
+``` r
+plot_b2c(b2c = b2c_1, feat = c("seurat_clusters", "CDH1"), plot.type = c("hulls", "outline"), col.cont = c(NA, "black"), outline.linewidth = 0.5, discrete.alpha = 0.4, he_alpha = 0.2)
+```
+
+Cells displayed are still selected by `min.visible` / `filter.feat`.
+
+![Per-feature geometry linewidth](man/figures/b2c_geometry2.jpg)
 
 ## Quantification
 

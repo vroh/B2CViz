@@ -158,11 +158,13 @@ extract_polygons <- function(obj = NULL, slice = NULL, label.id = "labels_he_exp
 #' @param discrete.levels If the feature is a discrete variable, select which levels to display
 #' @param discrete.alpha If the feature is a discrete variable, set its transparency
 #' @param col.discrete If the feature is a discrete variable, display the levels with the provided vector of colors
-#' @param pt_size Point size
+#' @param col.cont Color (single value or vector for each feature) used to render a continuous feature with a single flat color instead of a gradient (e.g. to combine a discrete feature shown as translucent hulls with gene expression). The flat color is applied to the geometry selected for that feature in plot.type (hull fill, points or outline). Cells displayed are still selected by min.visible/filter.feat. Use NA for a given feature to fall back to the gradient
+#' @param outline.linewidth Linewidth of the hull outlines for features rendered with plot.type = "outline"
+#' @param pt.size Point size
 #' @param shape Shape of the points. Defaults to solid circle (16) for 1 feature, empty circle (21) for multi-feature plot to better see multi-positive cells
 #' @param he_alpha Alpha value for H&E image
 #' @param title Plot title
-#' @param plot.type Type of plot (points or hulls or both)
+#' @param plot.type Rendered geometry for each feature: "points" (points only), "hulls" (translucent/gradient hull fill only), "both" (hull fill + points) or "outline" (outline of the hulls of the cells expressing the feature, with a gradient border color for continuous features or level colors for discrete ones). Provide a single value (applied to all features) or a vector matching feat to set the geometry of each feature independently
 #' @param show.bins Whether to show the 2um bins data. Defaults to "no", use "yes" to show bins corresponding to the feature and "all" to show all bins data (in white)
 #' @param outline.hulls Character vector of hulls to outline (by expanded labels ID)
 #' @param show.labels Whether or not to plot the hulls labels
@@ -177,9 +179,10 @@ extract_polygons <- function(obj = NULL, slice = NULL, label.id = "labels_he_exp
 plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0,
                      col.low = NULL, col.mid = NULL, col.high = "orangered", alpha.low = 0, alpha.mid = 0.5, alpha.high = 1, scale.min.max = NULL,
                      discrete.levels = NULL, discrete.alpha = 1, col.discrete = NULL,
-                     pt.size = 1, shape = NULL, he_alpha = 0.3, title = NULL, plot.type = c("points", "hulls"), show.bins = "no",
+                     pt.size = 1, shape = NULL, he_alpha = 0.3, title = NULL, plot.type = "both", show.bins = "no",
                      outline.hulls = NULL, show.labels = F, plot = T, scalebar = 200,
-                     scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0, filter.type = "or") {
+                     scalebar.width = 10, translate = T, filter.feat = NULL, filter.threshold = 0, filter.type = "or",
+                     col.cont = NULL, outline.linewidth = 0.5) {
 
   # prefilter data?
   if(!is.null(filter.feat)) {
@@ -189,6 +192,14 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   }
 
   # adjust parameters
+  if(!all(plot.type %in% c("points", "hulls", "both", "outline"))) {
+    stop('plot.type entries must be among "points", "hulls", "both" (hull fill + points) or "outline"')
+  }
+  if(length(plot.type) == 1) {
+    plot.type <- rep(plot.type, length(feat))
+  } else if(length(plot.type) != length(feat)) {
+    stop("plot.type must be a single value or a vector matching the number of features")
+  }
   if(length(min.visible) == 1) {
     min.visible <- rep(min.visible, length(feat))
   }
@@ -219,6 +230,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
   if(!is.null(col.discrete) && !is.list(col.discrete)) {
     col.discrete <- rep(list(col.discrete), length(feat))
   }
+  if(!is.null(col.cont) && length(col.cont) == 1) {
+    col.cont <- rep(col.cont, length(feat))
+  }
 
   # ensure downstream compatibility with get_dist()
   if (!plot) translate = F
@@ -229,7 +243,9 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   feat_is_discrete <- sapply(feat, function(f) is.factor(df_post[[f]]) || is.character(df_post[[f]]))
 
-  if("hulls" %in% plot.type) {
+  # hulls data is needed for hull fill, combined and outline rendering
+  hulls_mode <- any(plot.type %in% c("hulls", "both", "outline"))
+  if(hulls_mode) {
     if(b2c$data == "b2c") {
       df_pre <- Seurat::FetchData(b2c$pre, vars = c("SPATIAL_1", "SPATIAL_2", label.id)) |>
         dplyr::group_by(dplyr::across(label.id)) |>
@@ -243,7 +259,7 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   # translate to origin
   if(translate) {
-    if("hulls" %in% plot.type) {
+    if(hulls_mode) {
 
       translate_sp1 <- min(df$SPATIAL_1.y)
       translate_sp2 <- min(df$SPATIAL_2.y)
@@ -303,126 +319,68 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
   # plot cells
   plotted <- NULL
-  if("points" %in% plot.type & !("hulls" %in% plot.type)) {
-    for(i in 1:length(feat)) {
 
-      if(feat_is_discrete[i]) {
-        df_post[[feat[i]]] <- as.factor(df_post[[feat[i]]])
-        data.points <- df_post[!is.na(df_post[[feat[i]]]), ]
-        if(!is.null(discrete.levels) && length(discrete.levels) >= i && !is.null(discrete.levels[[i]])) {
-          data.points <- data.points[data.points[[feat[i]]] %in% discrete.levels[[i]], ]
-        }
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-      }
+  # prepare per-feature filtered data (points and, when available, hulls)
+  feat_data <- vector("list", length(feat))
+  for(i in 1:length(feat)) {
 
-      if (!is.null(filter.feat)) {
-        or_filter <- NULL
-        for (j in 1:length(filter.feat[[i]])) {
-          if (filter.feat[[i]][j] == "") {
-            next
-          } else {
-            if (exists("filter.type") && filter.type == "or") {
-              if (is.null(or_filter)) {
-                or_filter <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
-              } else {
-                or_filter <- or_filter | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
-              }
-            } else {
-              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            }
-          }
-        }
-        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter)) {
-          data.points <- data.points[or_filter, ]
-        }
-      }
-
-      if(feat_is_discrete[i]) {
-        p <-
-          p +
-          ggplot2::geom_point(data = data.points,
-                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
-                     alpha = discrete.alpha[i],
-                     shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3)
-
-        if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
-        } else {
-          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
-        }
-
-        p <- p + ggnewscale::new_scale_color()
-
-      } else {
-        p <-
-          p +
-          ggplot2::geom_point(data = data.points,
-                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
-                     shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-          ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
-                                mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
-                                high = scales::alpha(col.high[i], alpha = alpha.high[i]),
-                                midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
-                                na.value = "transparent",
-                                limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
-                                           ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
-          ggnewscale::new_scale_color()
-      }
-
-      plotted <- c(plotted, data.points[,length(data.points)])
-    }
-  } else if("hulls" %in% plot.type & !("points" %in% plot.type)) {
-    for(i in 1:length(feat)) {
-
-      if(feat_is_discrete[i]) {
-        df_post[[feat[i]]] <- as.factor(df_post[[feat[i]]])
+    if(feat_is_discrete[i]) {
+      df_post[[feat[i]]] <- as.factor(df_post[[feat[i]]])
+      data.points <- df_post[!is.na(df_post[[feat[i]]]), ]
+      data.hulls <- NULL
+      if(hulls_mode) {
         df[[feat[i]]] <- as.factor(df[[feat[i]]])
-        data.points <- df_post[!is.na(df_post[[feat[i]]]), ]
-        data.hulls <-  df[!is.na(df[[feat[i]]]), ]
-        if(!is.null(discrete.levels) && length(discrete.levels) >= i && !is.null(discrete.levels[[i]])) {
-          data.points <- data.points[data.points[[feat[i]]] %in% discrete.levels[[i]], ]
-          data.hulls <- data.hulls[data.hulls[[feat[i]]] %in% discrete.levels[[i]], ]
-        }
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
+        data.hulls <- df[!is.na(df[[feat[i]]]), ]
       }
+      if(!is.null(discrete.levels) && length(discrete.levels) >= i && !is.null(discrete.levels[[i]])) {
+        data.points <- data.points[data.points[[feat[i]]] %in% discrete.levels[[i]], ]
+        if(hulls_mode) data.hulls <- data.hulls[data.hulls[[feat[i]]] %in% discrete.levels[[i]], ]
+      }
+    } else {
+      data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
+      data.hulls <- NULL
+      if(hulls_mode) data.hulls <- df[df[[feat[i]]] > min.visible[i], ]
+    }
 
-      # perform pre-filtering
-      if (!is.null(filter.feat)) {
-        or_filter_dp <- NULL
-        or_filter_dh <- NULL
-        for (j in 1:length(filter.feat[[i]])) {
-          if (filter.feat[[i]][j] == "") {
-            next
-          } else {
-            if (exists("filter.type") && filter.type == "or") {
-              if (is.null(or_filter_dp)) {
-                or_filter_dp <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
-                or_filter_dh <- data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
-              } else {
-                or_filter_dp <- or_filter_dp | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
-                or_filter_dh <- or_filter_dh | (data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
-              }
-            } else {
-              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-              data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            }
+    # perform pre-filtering
+    if(!is.null(filter.feat)) {
+      or_filter_dp <- NULL
+      or_filter_dh <- NULL
+      for(j in 1:length(filter.feat[[i]])) {
+        if(filter.feat[[i]][j] == "") {
+          next
+        } else if(filter.type == "or") {
+          f_dp <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+          or_filter_dp <- if(is.null(or_filter_dp)) f_dp else (or_filter_dp | f_dp)
+          if(hulls_mode) {
+            f_dh <- data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
+            or_filter_dh <- if(is.null(or_filter_dh)) f_dh else (or_filter_dh | f_dh)
           }
-        }
-        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter_dp)) {
-          data.points <- data.points[or_filter_dp, ]
-          data.hulls <- data.hulls[or_filter_dh, ]
+        } else {
+          data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
+          if(hulls_mode) data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
         }
       }
+      if(filter.type == "or" && !is.null(or_filter_dp)) data.points <- data.points[or_filter_dp, ]
+      if(hulls_mode && filter.type == "or" && !is.null(or_filter_dh)) data.hulls <- data.hulls[or_filter_dh, ]
+    }
 
-      if(feat_is_discrete[i]) {
+    feat_data[[i]] <- list(points = data.points, hulls = data.hulls)
+  }
+
+  # pass 1: hull fill layers (discrete fills and continuous gradients or flat fills, drawn first)
+  if(hulls_mode) {
+    for(i in 1:length(feat)) {
+      data.hulls <- feat_data[[i]]$hulls
+      fill_mode <- plot.type[i] %in% c("hulls", "both")
+      points_mode_i <- plot.type[i] %in% c("points", "both")
+
+      if(fill_mode && feat_is_discrete[i]) {
         p <-
           p +
           ggplot2::geom_polygon(data = data.hulls,
                        ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
-                       alpha = discrete.alpha[i], color = NA)
+                       alpha = discrete.alpha[i], color = NA, show.legend = !points_mode_i)
 
         if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
           p <- p + ggplot2::scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
@@ -432,133 +390,135 @@ plot_b2c <- function(b2c, feat, label.id = "labels_he_expanded", min.visible = 0
 
         p <- p + ggnewscale::new_scale_fill()
 
-      } else {
-        p <-
-          p +
-          ggplot2::geom_polygon(data = data.hulls,
-                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA) +
-          ggplot2::scale_fill_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
-                               mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
-                               high = scales::alpha(col.high[i], alpha = alpha.high[i]),
-                               midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
-                               na.value = "transparent",
-                               limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
-                                          ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
-          ggnewscale::new_scale_fill()
-      }
-
-      plotted <- c(plotted, data.points[,length(data.points)])
-    }
-  } else if("points" %in% plot.type & "hulls" %in% plot.type) {
-    for(i in 1:length(feat)) {
-
-      if(feat_is_discrete[i]) {
-        df_post[[feat[i]]] <- as.factor(df_post[[feat[i]]])
-        df[[feat[i]]] <- as.factor(df[[feat[i]]])
-        data.points <- df_post[!is.na(df_post[[feat[i]]]), ]
-        data.hulls <-  df[!is.na(df[[feat[i]]]), ]
-        if(!is.null(discrete.levels) && length(discrete.levels) >= i && !is.null(discrete.levels[[i]])) {
-          data.points <- data.points[data.points[[feat[i]]] %in% discrete.levels[[i]], ]
-          data.hulls <- data.hulls[data.hulls[[feat[i]]] %in% discrete.levels[[i]], ]
-        }
-      } else {
-        data.points <- df_post[df_post[[feat[i]]] > min.visible[i], ]
-        data.hulls <-  df[df[[feat[i]]] > min.visible[i], ]
-      }
-
-      # perform pre-filtering
-      if (!is.null(filter.feat)) {
-        or_filter_dp <- NULL
-        or_filter_dh <- NULL
-        for (j in 1:length(filter.feat[[i]])) {
-          if (filter.feat[[i]][j] == "") {
-            next
-          } else {
-            if (exists("filter.type") && filter.type == "or") {
-              if (is.null(or_filter_dp)) {
-                or_filter_dp <- data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
-                or_filter_dh <- data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j]
-              } else {
-                or_filter_dp <- or_filter_dp | (data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
-                or_filter_dh <- or_filter_dh | (data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j])
-              }
-            } else {
-              data.points <- data.points[data.points[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-              data.hulls <- data.hulls[data.hulls[[filter.feat[[i]][j]]] > filter.threshold[[i]][j], ]
-            }
-          }
-        }
-        if (exists("filter.type") && filter.type == "or" && !is.null(or_filter_dp)) {
-          data.points <- data.points[or_filter_dp, ]
-          data.hulls <- data.hulls[or_filter_dh, ]
-        }
-      }
-
-      if(feat_is_discrete[i]) {
-        p <-
-          p +
-          ggplot2::geom_polygon(data = data.hulls,
-                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]),
-                       alpha = discrete.alpha[i], color = NA, show.legend = F)
-
-        if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + ggplot2::scale_fill_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+      } else if(fill_mode) {
+        if(!is.null(col.cont) && length(col.cont) >= i && !is.na(col.cont[i])) {
+          # continuous feature rendered as a single flat color hull fill
+          p <-
+            p +
+            ggplot2::geom_polygon(data = data.hulls,
+                         ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = paste0('"', feat[i], '"')),
+                         color = NA, show.legend = !points_mode_i) +
+            ggplot2::scale_fill_manual(name = feat[i], values = stats::setNames(col.cont[i], feat[i]), na.value = "transparent") +
+            ggnewscale::new_scale_fill()
         } else {
-          p <- p + ggplot2::scale_fill_discrete(name = feat[i], na.value = "transparent")
+          # continuous feature rendered as a gradient fill
+          p <-
+            p +
+            ggplot2::geom_polygon(data = data.hulls,
+                         ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = !points_mode_i) +
+            ggplot2::scale_fill_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                                 mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                                 high = scales::alpha(col.high[i], alpha = alpha.high[i]),
+                                 midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
+                                 na.value = "transparent",
+                                 limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
+                                            ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
+            ggnewscale::new_scale_fill()
         }
-
-        p <- p + ggnewscale::new_scale_fill()
-
-      } else {
-        p <-
-          p +
-          ggplot2::geom_polygon(data = data.hulls,
-                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, fill = feat[i]), color = NA, show.legend = F) +
-          ggplot2::scale_fill_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
-                               mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
-                               high = scales::alpha(col.high[i], alpha = alpha.high[i]),
-                               midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
-                               na.value = "transparent",
-                               limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
-                                          ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
-          ggnewscale::new_scale_fill()
       }
-
-      if(feat_is_discrete[i]) {
-        p <-
-          p +
-          ggplot2::geom_point(data = data.points,
-                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
-                     alpha = discrete.alpha[i],
-                     shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3)
-
-        if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
-          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
-        } else {
-          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
-        }
-
-        p <- p + ggnewscale::new_scale_color()
-
-      } else {
-        p <-
-          p +
-          ggplot2::geom_point(data = data.points,
-                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
-          ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
-                                mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
-                                high = scales::alpha(col.high[i], alpha = alpha.high[i]),
-                                midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
-                                na.value = "transparent",
-                                limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
-                                           ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
-          ggnewscale::new_scale_color()
-      }
-
-      plotted <- c(plotted, data.points[,length(data.points)])
+      # features rendered as "points" or "outline" only have no fill layer
     }
   }
 
+  # pass 2: overlay layers (points and hull outlines), always drawn on top of the fills
+  for(i in 1:length(feat)) {
+    data.points <- feat_data[[i]]$points
+    data.hulls <- feat_data[[i]]$hulls
+    points_mode_i <- plot.type[i] %in% c("points", "both")
+
+    if(feat_is_discrete[i]) {
+      if(points_mode_i) {
+        p <-
+          p +
+          ggplot2::geom_point(data = data.points,
+                     ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]),
+                     alpha = discrete.alpha[i],
+                     shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3)
+
+        if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
+          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+        } else {
+          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
+        }
+
+        p <- p + ggnewscale::new_scale_color()
+
+      } else if(plot.type[i] == "outline" && hulls_mode && !is.null(data.hulls) && nrow(data.hulls) > 0) {
+        # outline colored by feature levels
+        p <-
+          p +
+          ggplot2::geom_polygon(data = data.hulls,
+                       ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, color = feat[i]),
+                       alpha = discrete.alpha[i], fill = NA, linewidth = outline.linewidth)
+
+        if(!is.null(col.discrete) && length(col.discrete) >= i && !is.null(col.discrete[[i]])) {
+          p <- p + ggplot2::scale_color_manual(name = feat[i], values = col.discrete[[i]], na.value = "transparent")
+        } else {
+          p <- p + ggplot2::scale_color_discrete(name = feat[i], na.value = "transparent")
+        }
+
+        p <- p + ggnewscale::new_scale_color()
+      }
+    } else {
+      cont_col <- if(!is.null(col.cont) && length(col.cont) >= i && !is.na(col.cont[i])) col.cont[i] else NULL
+
+      if(points_mode_i) {
+        if(!is.null(cont_col)) {
+          # continuous feature rendered as flat-color points
+          p <-
+            p +
+            ggplot2::geom_point(data = data.points,
+                       ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = paste0('"', feat[i], '"')),
+                       shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+            ggplot2::scale_color_manual(name = feat[i], values = stats::setNames(cont_col, feat[i]), na.value = "transparent") +
+            ggnewscale::new_scale_color()
+        } else {
+          # continuous feature rendered as gradient points
+          p <-
+            p +
+            ggplot2::geom_point(data = data.points,
+                       ggplot2::aes_string(x = "SPATIAL_1", y = "SPATIAL_2", col = feat[i]), shape = shape, fill = NA, size = pt.size*i, stroke = 2*pt.size/3) +
+            ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                                  mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                                  high = scales::alpha(col.high[i], alpha = alpha.high[i]),
+                                  midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
+                                  na.value = "transparent",
+                                  limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
+                                             ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
+            ggnewscale::new_scale_color()
+        }
+
+      } else if(plot.type[i] == "outline" && hulls_mode && !is.null(data.hulls) && nrow(data.hulls) > 0) {
+        if(!is.null(cont_col)) {
+          # continuous feature rendered as a flat-color outline
+          p <-
+            p +
+            ggplot2::geom_polygon(data = data.hulls,
+                         ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, color = paste0('"', feat[i], '"')),
+                         fill = NA, linewidth = outline.linewidth) +
+            ggplot2::scale_color_manual(name = feat[i], values = stats::setNames(cont_col, feat[i]), na.value = "transparent") +
+            ggnewscale::new_scale_color()
+        } else {
+          # continuous feature rendered as an outline with a gradient border color
+          p <-
+            p +
+            ggplot2::geom_polygon(data = data.hulls,
+                         ggplot2::aes_string(x = "SPATIAL_1.y", y= "SPATIAL_2.y", group = label.id, color = feat[i]),
+                         fill = NA, linewidth = outline.linewidth) +
+            ggplot2::scale_color_gradient2(low = scales::alpha(col.low[i], alpha = alpha.low[i]),
+                                 mid = scales::alpha(col.mid[i], alpha = alpha.mid[i]),
+                                 high = scales::alpha(col.high[i], alpha = alpha.high[i]),
+                                 midpoint = ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE)/2, mean(scale.min.max[[i]])),
+                                 na.value = "transparent",
+                                 limits = c(ifelse(is.null(scale.min.max), min(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][1]),
+                                            ifelse(is.null(scale.min.max), max(df_post[[feat[i]]], na.rm = TRUE), scale.min.max[[i]][2]))) +
+            ggnewscale::new_scale_color()
+        }
+      }
+    }
+
+    plotted <- c(plotted, data.points[,length(data.points)])
+  }
   data.points <- df_post[df_post[, length(df_post)] %in% unique(plotted),]
 
   # plot labels
